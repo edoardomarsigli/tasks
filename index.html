@@ -96,7 +96,8 @@ main { padding: 4px 16px 90px; }
 .empty { text-align: center; color: var(--mute); padding: 50px 20px; }
 
 /* full-screen panels: task, sign-in */
-.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; animation: up .18s ease-out; padding-bottom: calc(env(safe-area-inset-bottom) + 40px); }
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; padding-bottom: calc(env(safe-area-inset-bottom) + 40px); }
+.sheet.enter { animation: up .18s ease-out; }
 @keyframes up { from { transform: translateY(24px); opacity: 0; } }
 .sheet .bar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: calc(env(safe-area-inset-top) + 8px) 8px 8px; border-bottom: 1px solid var(--line); }
 .sheet .bar b { font-size: 17px; }
@@ -117,6 +118,12 @@ textarea.field { resize: vertical; min-height: 46px; }
 .subchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .subchip { height: 34px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line2); background: var(--field); display: inline-flex; align-items: center; gap: 5px; font-size: 14px; }
 .subchip.on { background: var(--accbg); border-color: var(--acc2); color: var(--acc); font-weight: 600; }
+.subchip .rm { margin: 0 -6px 0 2px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: var(--mute); }
+.subchip .rm .i { width: 14px; height: 14px; }
+.addsel { height: 34px; border-radius: 99px; border: 1px dashed var(--line2); background: transparent; color: var(--acc); font-weight: 600; font-size: 14px; padding: 0 10px; max-width: 100%; }
+.addsel.wide { height: 44px; border-radius: 12px; width: 100%; padding: 0 12px; }
+button.vsub { cursor: pointer; }
+.vtick { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--acc); padding: 4px 6px; }
 .x { color: var(--mute); padding: 4px; }
 .list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .li { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border-top: 1px solid var(--line); }
@@ -717,7 +724,7 @@ function render() {
 function renderSheet() {
   const t = UI.open && findTask(UI.open);
   const root = $('#sheet-root');
-  if (!t) { root.innerHTML = ''; UI.open = null; return; }
+  if (!t) { root.innerHTML = ''; UI.open = null; UI.shown = ''; return; }
   if (UI.mode !== 'edit') { renderView(t); return; }
   const scroll = root.firstElementChild ? root.firstElementChild.scrollTop : 0;
   const focus = document.activeElement && document.activeElement.id;
@@ -726,10 +733,15 @@ function renderSheet() {
   let cats = '';
   for (const p of projectsOf(t)) {
     const subs = t.cats.filter(c => c.project === p && c.sub);
+    const reg = D.projects.find(r => low(r.name) === low(p));
+    const free = (reg ? reg.subs : []).filter(x => !subs.some(c => low(c.sub) === low(x)));
     cats += `<div class="proj"><div class="ph">${icon('folder')}<span style="flex:1">${esc(p)}</span><button class="x" data-act="rm-proj" data-p="${esc(p)}" aria-label="Remove">${icon('x')}</button></div>
-      ${subs.length ? `<div class="subchips">${subs.map(c => `<button class="subchip ${c.done ? 'on' : ''}" data-act="tick-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}">${c.done ? '✔ ' : ''}${esc(c.sub)}</button>`).join('')}</div>` : ''}</div>`;
+      <div class="subchips">${subs.map(c => `<span class="subchip ${c.done ? 'on' : ''}" data-act="tick-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}">${c.done ? '✔ ' : ''}${esc(c.sub)}<button class="rm" data-act="rm-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}" aria-label="Remove ${esc(c.sub)}">${icon('x')}</button></span>`).join('')}
+        <select class="addsel" data-addsub="${esc(p)}" aria-label="Add a subproject"><option value="">+ Subproject</option>${free.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}<option value="__new__">New subproject…</option></select></div></div>`;
   }
-  root.innerHTML = `<div class="sheet">
+  const freeProj = D.projects.filter(r => !projectsOf(t).some(x => low(x) === low(r.name)));
+  cats += `<select class="addsel wide" id="f-addproj" aria-label="Add to a project"><option value="">+ Add to a project</option>${freeProj.map(r => `<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('')}<option value="__new__">New project…</option></select>`;
+  root.innerHTML = `<div class="sheet${enterCls(t)}">
     <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Edit task</b><div class="spacer"></div>
       <button class="icon-btn" data-act="dup" aria-label="Duplicate">${icon('copy')}</button>
       <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button>
@@ -741,9 +753,7 @@ function renderSheet() {
       <span class="lbl">Priority</span>${seg('prio', PRIO.map((l, i) => [i, l]), t.priority)}
       <span class="lbl">Due</span><div class="row"><input id="f-due" class="field" type="date" data-f="due" value="${esc(t.due)}">${t.due ? `<button class="btn ghost" data-act="clear-due">Clear</button>` : ''}</div>
       <span class="lbl">Repeat</span><select id="f-repeat" class="field" data-f="repeat">${REPEATS.map(([v, l]) => `<option value="${v}" ${t.repeat === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <span class="lbl">Project and subcategories</span><div class="cats">${cats}
-        <div class="row"><input id="f-addcat" class="field" placeholder="project or project/sub" list="projs" autocapitalize="off"><button class="btn ghost" data-act="add-cat">${icon('plus')}</button></div>
-        <datalist id="projs">${D.projects.flatMap(p => [p.name, ...p.subs.map(s => p.name + '/' + s)]).map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+      <span class="lbl">Project and subprojects <span style="text-transform:none;letter-spacing:0;font-weight:500">· tap a subproject to mark it done</span></span><div class="cats">${cats}</div>
       <span class="lbl">Tags</span><input id="f-tags" class="field" data-f="tags" value="${esc(t.tags.join(', '))}" placeholder="plc, hmi" autocapitalize="off">
       <span class="lbl">Checklist ${t.subs.length ? `· ${t.subs.filter(s => s.done).length}/${t.subs.length}` : ''}</span>
       <div class="list">${t.subs.map(s => `<div class="li ${s.done ? 'done' : ''}"><button class="box ${s.done ? 'on' : ''}" data-act="tick-sub" data-s="${s.id}">${s.done ? icon('check') : ''}</button><span class="t">${esc(s.t)}</span><button class="x" data-act="rm-sub" data-s="${s.id}">${icon('x')}</button></div>`).join('')}
@@ -757,6 +767,8 @@ function renderSheet() {
   root.firstElementChild.scrollTop = scroll;
   if (focus && $('#' + focus)) $('#' + focus).focus();
 }
+// slide in only when a page opens, not at every change made on it
+function enterCls(t) { const k = t.id + '|' + UI.mode, first = UI.shown !== k; UI.shown = k; return first ? ' enter' : ''; }
 function renderView(t) {
   const root = $('#sheet-root');
   const scroll = root.firstElementChild && root.firstElementChild.dataset.v === t.id ? root.firstElementChild.scrollTop : 0;
@@ -771,14 +783,15 @@ function renderView(t) {
   if (t.status === 'blocked' && t.reason) h += sec('Waiting for', `<div class="vbox" style="color:var(--violet)">${esc(t.reason)}</div>`);
   if (t.cats.length) h += sec('Project', projectsOf(t).map(p => {
     const subs = t.cats.filter(c => c.project === p && c.sub);
-    return `<div class="vbox" style="margin-bottom:6px"><b>${esc(p)}</b>${subs.length ? ` <span style="color:var(--mute);font-size:13px">${subs.filter(c => c.done).length}/${subs.length}</span><div class="vsubs">${subs.map(c => `<span class="vsub ${c.done ? 'on' : ''}">${c.done ? '✔ ' : ''}${esc(c.sub)}</span>`).join('')}</div>` : ''}</div>`;
+    const all = subs.length > 1 && subs.some(c => !c.done) ? `<button class="vtick" data-act="tick-all" data-p="${esc(p)}">✔ All done</button>` : '';
+    return `<div class="vbox" style="margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px"><b>${esc(p)}</b>${subs.length ? ` <span style="color:var(--mute);font-size:13px">${subs.filter(c => c.done).length}/${subs.length}</span>` : ''}${all}</div>${subs.length ? `<div class="vsubs">${subs.map(c => `<button class="vsub ${c.done ? 'on' : ''}" data-act="tick-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}">${c.done ? '✔ ' : ''}${esc(c.sub)}</button>`).join('')}</div>` : ''}</div>`;
   }).join(''));
   if (t.tags.length) h += sec('Tags', `<div class="badges">${t.tags.map(g => `<span class="badge">#${esc(g)}</span>`).join('')}</div>`);
   if (t.subs.length) h += sec(`Checklist · ${t.subs.filter(x => x.done).length}/${t.subs.length}`, `<div class="vbox">${t.subs.map(x => `<div class="vli ${x.done ? 'done' : ''}"><span class="mk ${x.done ? 'on' : ''}">${x.done ? icon('check') : ''}</span><span class="t">${esc(x.t)}</span></div>`).join('')}</div>`);
   if (t.notes.trim()) h += sec('Notes', `<div class="vbox vnotes">${esc(t.notes.trim())}</div>`);
   if (t.log.length) h += sec('Journal', `<div class="vbox">${[...t.log].reverse().map(e => `<div class="vli"><span class="t"><span class="when" style="display:block;font-size:12px;color:var(--mute)">${fmtStamp(e.at)}</span>${esc(e.t)}</span></div>`).join('')}</div>`);
   h += `<div class="info">Created ${t.created ? fmtStamp(t.created) : '—'}${t.doneAt ? `<br>Done ${fmtStamp(t.doneAt)}` : ''}${timeSpent(t) ? `<br>Time tracked ${fmtHM(timeSpent(t))}` : ''}${t.files.length ? `<br>${t.files.length} attached file${t.files.length > 1 ? 's' : ''} (on the PC)` : ''}</div>`;
-  root.innerHTML = `<div class="sheet" data-v="${t.id}">
+  root.innerHTML = `<div class="sheet${enterCls(t)}" data-v="${t.id}">
     <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Task</b><div class="spacer"></div>
       <button class="btn small ghost" data-act="edit">${icon('edit')} Edit</button></div>
     <div class="view">${h}</div>
@@ -804,6 +817,7 @@ document.addEventListener('change', e => {
   if (el.id === 'proj') { UI.project = el.value; UI.sub = ''; lsSet('tasks.m.project', UI.project); lsSet('tasks.m.sub', ''); render(); return; }
   if (el.id === 'sub') { UI.sub = el.value; lsSet('tasks.m.sub', UI.sub); render(); return; }
   if (el.id === 'tag') { UI.tag = el.value; lsSet('tasks.m.tag', UI.tag); render(); return; }
+  if (el.dataset.addsub != null || el.id === 'f-addproj') { addCat(el); return; }
   if (!f || !UI.open) return;
   const t = findTask(UI.open); if (!t) return;
   let v = el.value;
@@ -897,6 +911,29 @@ function endDrag(cancelled = false) {
   if (st && st !== d.from) toast(`Moved to ${STATUS[st]}`);
 }
 
+// Edit: add the task to a subproject or a project, existing or new (as on the PC)
+function addCat(el) {
+  const t = findTask(UI.open); let v = el.value; el.value = '';
+  if (!t || !v) return;
+  const clean = x => (x || '').trim().replace(/^[@+#]+/, '').trim();
+  const isProj = el.id === 'f-addproj';
+  if (v === '__new__') {
+    v = clean(prompt(isProj ? 'Name of the new project' : `New subproject of “${el.dataset.addsub}” (e.g. em07)`));
+    if (!v) { renderSheet(); return; }
+    if (!isProj && v.includes('/')) v = v.replace(/\//g, '-');
+  }
+  if (isProj) {
+    const known = D.projects.find(r => low(r.name) === low(v));
+    change(() => { t.cats = normCats([...t.cats, { project: known ? known.name : v, sub: '' }]); });
+    toast(`${t.title} → ${known ? known.name : v}`);
+  } else {
+    const p = el.dataset.addsub, reg = D.projects.find(r => low(r.name) === low(p));
+    const known = reg && reg.subs.find(x => low(x) === low(v));
+    change(() => { t.cats = normCats([...t.cats, { project: p, sub: known || v }]); });
+    toast(`${t.title} → ${p} › ${known || v}`);
+  }
+}
+
 // ------------------------------------------------------------------ taps
 const ACT = {
   signin: () => signIn(false),
@@ -923,14 +960,22 @@ const ACT = {
   status: el => { const t = findTask(UI.open); change(() => setStatus(t, el.dataset.v, el.dataset.v === 'blocked' ? (t.reason || '') : null)); },
   prio: el => { const t = findTask(UI.open); change(() => { t.priority = +el.dataset.v; }); },
   'clear-due': () => { const t = findTask(UI.open); change(() => { t.due = ''; }); },
-  'tick-cat': el => { const t = findTask(UI.open); const c = t.cats.find(c => c.project === el.dataset.p && c.sub === el.dataset.s); if (c) change(() => { c.done = !c.done; }); },
-  'rm-proj': el => { const t = findTask(UI.open); if (confirm(`Remove “${el.dataset.p}” from this task?`)) change(() => { t.cats = t.cats.filter(c => c.project !== el.dataset.p); }); },
-  'add-cat': () => {
-    const t = findTask(UI.open), v = $('#f-addcat').value.trim().replace(/^@/, ''); if (!v) return;
-    const [p, ...rest] = v.split('/'), sub = rest.join('/').trim();
-    const known = D.projects.find(r => low(r.name) === low(p.trim()));
-    change(() => { t.cats = normCats([...t.cats, { project: known ? known.name : p.trim(), sub }]); });
+  'tick-cat': el => {
+    const t = findTask(UI.open); const c = t && t.cats.find(c => c.project === el.dataset.p && c.sub === el.dataset.s); if (!c) return;
+    change(() => { c.done = !c.done; });
+    const left = t.cats.filter(x => x.sub && !x.done).map(x => x.sub);
+    toast(left.length ? `${c.sub} ${c.done ? 'done' : 'to do'} · still missing ${left.join(', ')}` : 'Done in all subprojects');
   },
+  'tick-all': el => { const t = findTask(UI.open); change(() => t.cats.forEach(c => { if (c.sub && c.project === el.dataset.p) c.done = true; })); toast('Done in all subprojects'); },
+  'rm-cat': el => {
+    const t = findTask(UI.open), p = el.dataset.p, sub = el.dataset.s;
+    change(() => {
+      t.cats = t.cats.filter(c => !(c.project === p && c.sub === sub));
+      if (!t.cats.some(c => c.project === p)) t.cats = normCats([...t.cats, { project: p, sub: '' }]);   // stays in the project
+    });
+  },
+  'rm-proj': el => { const t = findTask(UI.open); if (confirm(`Remove “${el.dataset.p}” from this task?`)) change(() => { t.cats = t.cats.filter(c => c.project !== el.dataset.p); }); },
+
   'tick-sub': el => { const t = findTask(UI.open); const s = t.subs.find(s => s.id === el.dataset.s); if (s) change(() => { s.done = !s.done; }); },
   'rm-sub': el => { const t = findTask(UI.open); change(() => { t.subs = t.subs.filter(s => s.id !== el.dataset.s); }); },
   'add-sub': () => { const t = findTask(UI.open), v = $('#f-addsub').value.trim(); if (v) change(() => t.subs.push({ id: uid(), t: v, done: false })); },
@@ -969,7 +1014,7 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   const id = e.target.id;
-  if (id === 'f-addsub' || id === 'f-addlog' || id === 'f-addcat') { e.preventDefault(); ACT[{ 'f-addsub': 'add-sub', 'f-addlog': 'add-log', 'f-addcat': 'add-cat' }[id]](); }
+  if (id === 'f-addsub' || id === 'f-addlog') { e.preventDefault(); ACT[{ 'f-addsub': 'add-sub', 'f-addlog': 'add-log' }[id]](); }
   else if (id === 'f-title') { e.preventDefault(); e.target.blur(); }
 });
 $('#quickform').addEventListener('submit', e => {
