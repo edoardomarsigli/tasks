@@ -12,7 +12,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root {
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -405,43 +404,40 @@ function change(fn, quiet = false) {
 
 // ------------------------------------------------------------------ Google sign-in and Drive
 const tokenOK = (margin = 60000) => G.token && Date.now() < G.exp - margin;
-function tokenClient() {
-  if (G.client) return G.client;
-  if (!(window.google && google.accounts && google.accounts.oauth2)) return null;
-  G.client = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE.clientId, scope: GOOGLE.scope,
-    callback: r => {
-      G.asking = false;
-      if (r.error || !r.access_token) { setSync('auth'); signInProblem('Google answered: ' + (r.error_description || r.error || 'no permission')); return; }
-      if (!google.accounts.oauth2.hasGrantedAllScopes(r, GOOGLE.scope)) {
-        setSync('auth');
-        signInProblem('The Drive permission was not given. Sign in again and, on Google’s page, tick the box “See, edit, create and delete only the specific Google Drive files you use with this app”.');
-        return;
-      }
-      G.token = r.access_token; G.exp = Date.now() + (+r.expires_in || 3600) * 1000;
-      G.wanted = true; lsSet('tasks.m.on', '1');
-      afterSignIn();
-    },
-    error_callback: e => {
-      G.asking = false; setSync('auth');
-      const t = e && e.type;
-      signInProblem(t === 'popup_failed_to_open' ? 'The browser blocked Google’s window. Allow pop-ups for this site, or open the page in Chrome / Safari.'
-        : t === 'popup_closed' ? 'Google’s window was closed before finishing. Try again and complete all the steps.'
-        : 'Sign-in did not complete (' + (t || 'unknown') + ').');
-    },
-  });
-  return G.client;
+// Sign-in by going to Google's page and coming back (no pop-up window: those
+// fail on phones). Google gives a permission valid one hour, kept for this tab.
+const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, '');
+const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+const ssSet = (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) { /* storage blocked */ } };
+function signIn(consent = false, silent = false) {
+  const state = uid(); ssSet('tasks.m.state', state);
+  if (silent) ssSet('tasks.m.silentAt', String(Date.now()));
+  const p = new URLSearchParams({ client_id: GOOGLE.clientId, redirect_uri: REDIRECT, response_type: 'token',
+    scope: GOOGLE.scope, include_granted_scopes: 'true', state });
+  if (G.email) p.set('login_hint', G.email);
+  if (silent) p.set('prompt', 'none'); else if (consent) p.set('prompt', 'consent');
+  location.assign('https://accounts.google.com/o/oauth2/v2/auth?' + p);
 }
-function signIn(first = false) {
-  const c = tokenClient();
-  if (!c) { toast('Google is not reachable: check the connection and try again.', { error: true }); return; }
-  if (G.asking) return;
-  G.asking = true; setTimeout(() => { G.asking = false; }, 60000);
-  c.requestAccessToken({ prompt: first ? 'consent' : '', login_hint: G.email || undefined });
+// Silent renewal (a quick trip to Google and back) only when nothing is being typed, and not in a loop.
+function renewQuietly() {
+  if (G.wanted && !tokenOK(5 * 60000) && !UI.open && Date.now() - (+ssGet('tasks.m.silentAt') || 0) > 120000) { signIn(false, true); return true; }
+  return false;
 }
-// The permission lasts one hour: on a tap, renew it if needed (Google's window may flash for a moment).
-addEventListener('click', () => { if (G.wanted && !G.asking && !tokenOK(5 * 60000) && tokenClient()) signIn(); }, true);
-
+// Back from Google: the answer is after the "#" in the address.
+function readRedirect() {
+  if (!/[#&](state|error|access_token)=/.test(location.hash)) return null;
+  const h = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', REDIRECT);
+  const expect = ssGet('tasks.m.state'); ssSet('tasks.m.state', null);
+  const silent = h.get('state') && Date.now() - (+ssGet('tasks.m.silentAt') || 0) < 120000;
+  if (!expect || h.get('state') !== expect) return { problem: 'Sign-in answer not recognised. Please try again.' };
+  if (h.get('error')) return { error: h.get('error'), silent };
+  if (!(h.get('scope') || '').split(' ').includes(GOOGLE.scope))
+    return { problem: 'The Drive permission was not given. Sign in again and, on Google’s page, tick the box “See, edit, create and delete only the specific Google Drive files you use with this app”.' };
+  G.token = h.get('access_token'); G.exp = Date.now() + (+h.get('expires_in') || 3600) * 1000;
+  ssSet('tasks.m.token', G.token); ssSet('tasks.m.exp', String(G.exp));
+  return { ok: true };
+}
 async function gfetch(url, opts = {}) {
   const r = await fetch(url.startsWith('http') ? url : 'https://www.googleapis.com/drive/v3/' + url,
     { ...opts, headers: { Authorization: 'Bearer ' + G.token, ...(opts.headers || {}) } });
@@ -556,7 +552,7 @@ function setSync(state, msg = '') {
   $('#synctext').textContent = t;
   el.className = 'sync ' + ({ busy: 'busy', auth: 'warn', error: 'bad' }[state] || '');
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && G.fileId && tokenOK()) sync(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || !G.fileId) return; if (tokenOK()) sync(); else renewQuietly(); });
 setInterval(() => { if (document.visibilityState === 'visible' && G.fileId && tokenOK() && !G.busy) sync(); }, 30000);
 addEventListener('online', () => { if (tokenOK()) syncSoon(200); });
 
@@ -716,7 +712,7 @@ document.addEventListener('change', e => {
 
 // ------------------------------------------------------------------ taps
 const ACT = {
-  signin: () => signIn(true),
+  signin: () => signIn(false),
   retry: () => { if (tokenOK()) afterSignIn(); else signIn(); },
   pick: () => pickFile(),
   create: () => { if (confirm('Start a new, empty task list on this Google Drive?')) createFile(); },
@@ -797,7 +793,8 @@ $('#menubtn').innerHTML = icon('more'); $('#addbtn').innerHTML = icon('plus'); $
 
 function signOut() {
   if (G.dirty && !confirm('Some changes have not reached Drive yet and will be lost. Sign out anyway?')) return;
-  if (G.token && window.google) google.accounts.oauth2.revoke(G.token, () => {});
+  if (G.token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(G.token), { method: 'POST', mode: 'no-cors' }).catch(() => {});
+  for (const k of ['token', 'exp', 'state', 'silentAt']) ssSet('tasks.m.' + k, null);
   for (const k of ['data', 'dirty', 'fileId', 'version', 'email', 'on']) lsSet('tasks.m.' + k, null);
   location.reload();
 }
@@ -811,8 +808,18 @@ function toast(msg, opts = {}) {
 }
 
 // ------------------------------------------------------------------ start
-if (D && G.fileId) { showApp(); render(); setSync(G.wanted ? 'auth' : 'idle'); }
+const back = readRedirect();
+if (!back && ssGet('tasks.m.token') && Date.now() < (+ssGet('tasks.m.exp') || 0) - 60000) { G.token = ssGet('tasks.m.token'); G.exp = +ssGet('tasks.m.exp'); }
+if (D && G.fileId) { showApp(); render(); setSync(tokenOK() ? 'idle' : G.wanted ? 'auth' : 'idle'); }
 else showGate('signin');
+if (back && back.ok) { G.wanted = true; lsSet('tasks.m.on', '1'); afterSignIn(); }
+else if (back && back.problem) signInProblem(back.problem);
+else if (back && back.error) {
+  if (!back.silent) signInProblem(back.error === 'access_denied' ? 'Access was not allowed on Google’s page.' : 'Google answered: ' + back.error);
+  else if (!(D && G.fileId)) showGate('signin');      // quiet renewal not possible: a tap on "Sign in" is needed
+}
+else if (tokenOK()) { if (G.fileId) sync(); }
+else if (D && G.fileId) renewQuietly();
 setInterval(() => { if (D && !UI.open) render(); }, 60000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
