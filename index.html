@@ -412,12 +412,23 @@ function tokenClient() {
     client_id: GOOGLE.clientId, scope: GOOGLE.scope,
     callback: r => {
       G.asking = false;
-      if (r.error || !r.access_token) { setSync('auth'); return; }
+      if (r.error || !r.access_token) { setSync('auth'); signInProblem('Google answered: ' + (r.error_description || r.error || 'no permission')); return; }
+      if (!google.accounts.oauth2.hasGrantedAllScopes(r, GOOGLE.scope)) {
+        setSync('auth');
+        signInProblem('The Drive permission was not given. Sign in again and, on Google’s page, tick the box “See, edit, create and delete only the specific Google Drive files you use with this app”.');
+        return;
+      }
       G.token = r.access_token; G.exp = Date.now() + (+r.expires_in || 3600) * 1000;
       G.wanted = true; lsSet('tasks.m.on', '1');
       afterSignIn();
     },
-    error_callback: () => { G.asking = false; setSync('auth'); },
+    error_callback: e => {
+      G.asking = false; setSync('auth');
+      const t = e && e.type;
+      signInProblem(t === 'popup_failed_to_open' ? 'The browser blocked Google’s window. Allow pop-ups for this site, or open the page in Chrome / Safari.'
+        : t === 'popup_closed' ? 'Google’s window was closed before finishing. Try again and complete all the steps.'
+        : 'Sign-in did not complete (' + (t || 'unknown') + ').');
+    },
   });
   return G.client;
 }
@@ -451,7 +462,15 @@ async function afterSignIn() {
       useFile(files[0].id); return;
     }
     sync();
-  } catch (e) { syncFailed(e); }
+  } catch (e) {
+    syncFailed(e);
+    signInProblem(e && e.auth ? 'Google did not accept the permission. Sign in again.' : 'Drive answered: ' + ((e && e.msg) || 'error') + (e && e.status ? ' (' + e.status + ')' : ''));
+  }
+}
+// Shown on the sign-in page, so a failed attempt never looks like nothing happened.
+function signInProblem(msg) {
+  if (!$('#app').classList.contains('hidden')) { toast(msg, { error: true }); return; }
+  showGate('signin', msg);
 }
 function useFile(id) {
   if (id !== G.fileId) { G.fileId = id; G.version = null; if (D && !G.dirty) D = null; saveLocal(); }
@@ -516,7 +535,10 @@ async function sync() {
       else if (hadChanges) toast('Updated from the PC');
     } else if (G.dirty) await upload();
     setSync('ok');
-  } catch (e) { syncFailed(e); }
+  } catch (e) {
+    syncFailed(e);
+    if ($('#app').classList.contains('hidden')) signInProblem('Drive answered: ' + ((e && e.msg) || (e && e.auth ? 'permission expired' : 'error')));
+  }
   G.busy = false;
   if (G.again) { G.again = false; syncSoon(300); }
 }
@@ -540,7 +562,7 @@ addEventListener('online', () => { if (tokenOK()) syncSoon(200); });
 
 // ------------------------------------------------------------------ screens
 function showApp() { $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); }
-function showGate(kind) {
+function showGate(kind, problem = '') {
   const g = $('#gate'); $('#app').classList.add('hidden'); g.classList.remove('hidden');
   const logo = `<div class="logo">${icon('check')}</div>`;
   if (kind === 'nofile') {
@@ -553,7 +575,8 @@ function showGate(kind) {
     g.innerHTML = `<div class="gate">${logo}<h1>Tasks</h1>
       <p>Your tasks, the same as on the PC. Sign in with the Google account where Tasks keeps its file.</p>
       <button class="btn" data-act="signin">Sign in with Google</button>
-      <p class="hint">Tasks can only see the files it created itself, nothing else on your Drive.</p></div>`;
+      ${problem ? `<p style="color:var(--red);background:var(--redbg);padding:12px 14px;border-radius:12px;font-size:14.5px">${esc(problem)}</p>` : ''}
+      <p class="hint">Tasks sees only the file you choose, nothing else on your Drive.</p></div>`;
   }
 }
 
@@ -693,7 +716,7 @@ document.addEventListener('change', e => {
 
 // ------------------------------------------------------------------ taps
 const ACT = {
-  signin: () => signIn(!G.email),
+  signin: () => signIn(true),
   retry: () => { if (tokenOK()) afterSignIn(); else signIn(); },
   pick: () => pickFile(),
   create: () => { if (confirm('Start a new, empty task list on this Google Drive?')) createFile(); },
