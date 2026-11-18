@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tasks">
+<title>Tasks</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bg: #f6f5f1; --panel: #ffffff; --field: #ffffff; --chip: #f1f0ec;
+  --ink: #1b211e; --ink2: #47504b; --mute: #7c847f; --line: #e4e1d8; --line2: #d3cfc4;
+  --acc: #0f766e; --acc2: #14b8a6; --accbg: #e3f3ef; --accink: #ffffff;
+  --red: #d33b2c; --redbg: #fdecea; --amber: #b7650b; --amberbg: #fdf1df;
+  --violet: #7349d6; --violetbg: #f0eafd; --blue: #2563eb; --bluebg: #e7eefd;
+  --shadow: 0 1px 2px rgba(20, 28, 24, .06), 0 1px 1px rgba(20, 28, 24, .03);
+  --shadow-lg: 0 -10px 40px rgba(20, 28, 24, .18);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121614; --panel: #1a1f1d; --field: #141816; --chip: #232926;
+    --ink: #e7ebe8; --ink2: #b9c0bb; --mute: #848d87; --line: #272d2a; --line2: #39413d;
+    --acc: #26a596; --acc2: #2dd4bf; --accbg: #17332e; --accink: #ffffff;
+    --red: #f0786b; --redbg: #3a1f1c; --amber: #f0b45a; --amberbg: #3a2c17;
+    --violet: #b39cf5; --violetbg: #2b2440; --blue: #7aa5ff; --bluebg: #1d2a45;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 -10px 40px rgba(0, 0, 0, .55);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { font: 16px/1.45 var(--font); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom); overflow-x: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input, textarea, select { font: inherit; color: var(--ink); }
+.i { width: 20px; height: 20px; flex: none; }
+.hidden { display: none !important; }
+
+.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: calc(env(safe-area-inset-top) + 10px) 16px 8px; }
+.bar { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
+.logo { width: 28px; height: 28px; border-radius: 9px; background: var(--acc); display: grid; place-items: center; color: #fff; }
+.spacer { flex: 1; }
+.sync { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--mute); padding: 6px 10px; border-radius: 99px; background: var(--chip); max-width: 58vw; }
+.sync span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--acc2); flex: none; }
+.sync.busy .dot { background: var(--blue); animation: pulse 1s infinite; }
+.sync.warn { color: var(--amber); background: var(--amberbg); } .sync.warn .dot { background: var(--amber); }
+.sync.bad { color: var(--red); background: var(--redbg); } .sync.bad .dot { background: var(--red); }
+@keyframes pulse { 50% { opacity: .3; } }
+.icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--ink2); }
+.icon-btn:active { background: var(--chip); }
+
+.quick { display: flex; gap: 8px; margin-top: 10px; }
+.quick input { flex: 1; min-width: 0; height: 46px; border: 1px solid var(--line2); border-radius: 14px; padding: 0 14px; background: var(--field); outline: none; }
+.quick input:focus { border-color: var(--acc2); box-shadow: 0 0 0 3px rgba(20, 184, 166, .18); }
+.btn { height: 46px; padding: 0 16px; border-radius: 14px; background: var(--acc); color: var(--accink); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.ghost { background: var(--chip); color: var(--ink); }
+.btn.danger { background: var(--redbg); color: var(--red); }
+.btn:active { filter: brightness(.95); }
+.hint { font-size: 12.5px; color: var(--mute); margin: 6px 2px 0; }
+
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px 4px; margin: 0 -16px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 34px; padding: 0 12px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
+.chip.on { background: var(--acc); border-color: var(--acc); color: var(--accink); }
+.chip .n { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
+.filters { display: flex; gap: 8px; margin-top: 8px; }
+.filters select, .filters input { height: 38px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 0 10px; min-width: 0; font-size: 15px; }
+.filters select { flex: 1; } .filters input { flex: 1; outline: none; }
+
+main { padding: 4px 16px 90px; }
+.group { margin: 16px 2px 6px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); display: flex; gap: 8px; }
+.card { display: flex; gap: 12px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 12px 10px; margin-bottom: 8px; box-shadow: var(--shadow); }
+.card.done .title { color: var(--mute); text-decoration: line-through; }
+.chk { width: 30px; height: 30px; flex: none; display: grid; place-items: center; color: var(--line2); margin-top: -3px; }
+.chk.doing { color: var(--blue); } .chk.blocked { color: var(--violet); } .chk.done { color: var(--acc); }
+.chk .i { width: 26px; height: 26px; }
+.cbody { flex: 1; min-width: 0; }
+.title { font-weight: 550; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 5px 8px; margin-top: 4px; font-size: 13px; color: var(--mute); }
+.tagx { background: var(--chip); border-radius: 6px; padding: 0 6px; }
+.due.late { color: var(--red); font-weight: 600; } .due.today { color: var(--amber); font-weight: 600; }
+.prio { color: var(--red); font-weight: 700; letter-spacing: -1px; margin-right: 4px; }
+.reason { color: var(--violet); }
+.run { color: var(--blue); font-weight: 600; }
+.empty { text-align: center; color: var(--mute); padding: 50px 20px; }
+
+/* full-screen panels: task, sign-in */
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; animation: up .18s ease-out; padding-bottom: calc(env(safe-area-inset-bottom) + 40px); }
+@keyframes up { from { transform: translateY(24px); opacity: 0; } }
+.sheet .bar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: calc(env(safe-area-inset-top) + 8px) 8px 8px; border-bottom: 1px solid var(--line); }
+.sheet .bar b { font-size: 17px; }
+.form { padding: 8px 16px; }
+.lbl { display: block; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); margin: 18px 2px 7px; }
+.field { width: 100%; border: 1px solid var(--line2); border-radius: 12px; background: var(--field); padding: 10px 12px; outline: none; }
+.field:focus { border-color: var(--acc2); }
+textarea.field { resize: vertical; min-height: 46px; }
+.ttl { font-size: 19px; font-weight: 600; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chip); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { height: 38px; border-radius: 9px; font-size: 14px; color: var(--ink2); }
+.seg button.on { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > .field { flex: 1; min-width: 0; }
+.cats { display: flex; flex-direction: column; gap: 8px; }
+.proj { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.proj .ph { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.subchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.subchip { height: 34px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line2); background: var(--field); display: inline-flex; align-items: center; gap: 5px; font-size: 14px; }
+.subchip.on { background: var(--accbg); border-color: var(--acc2); color: var(--acc); font-weight: 600; }
+.x { color: var(--mute); padding: 4px; }
+.list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.li { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.li.done .t { color: var(--mute); text-decoration: line-through; }
+.box { width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--line2); display: grid; place-items: center; flex: none; color: #fff; }
+.box.on { background: var(--acc); border-color: var(--acc); }
+.box .i { width: 16px; height: 16px; }
+.log .when { font-size: 12px; color: var(--mute); display: block; }
+.info { font-size: 13px; color: var(--mute); margin-top: 22px; line-height: 1.7; }
+.gate { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 100vh; padding: 30px 24px; gap: 14px; }
+.gate .logo { width: 64px; height: 64px; border-radius: 20px; }
+.gate .logo .i { width: 36px; height: 36px; }
+.gate h1 { margin: 6px 0 0; font-size: 26px; }
+.gate p { margin: 0; color: var(--ink2); max-width: 360px; }
+.gate .btn { min-width: 240px; }
+.menu { position: fixed; z-index: 30; top: calc(env(safe-area-inset-top) + 54px); right: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; min-width: 230px; }
+.menu button { display: flex; width: 100%; gap: 10px; align-items: center; padding: 11px 12px; border-radius: 10px; text-align: left; font-size: 15px; }
+.menu button:active { background: var(--chip); }
+.menu .who { font-size: 12.5px; color: var(--mute); padding: 6px 12px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow-wrap: anywhere; }
+.scrim { position: fixed; inset: 0; z-index: 25; }
+#toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 22px); transform: translateX(-50%); z-index: 40; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14.5px; max-width: calc(100vw - 32px); box-shadow: var(--shadow-lg); display: flex; gap: 14px; align-items: center; }
+#toast.err { background: var(--red); color: #fff; }
+#toast button { font-weight: 700; color: var(--acc2); }
+</style>
+</head>
+<body>
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="bar">
+      <div class="brand"><span class="logo" id="logo"></span>Tasks</div>
+      <div class="spacer"></div>
+      <button class="sync" id="sync"><span class="dot"></span><span id="synctext">…</span></button>
+      <button class="icon-btn" id="menubtn" aria-label="Menu"></button>
+    </div>
+    <form class="quick" id="quickform" autocomplete="off">
+      <input id="quick" enterkeyhint="done" placeholder="Add a task…" spellcheck="false">
+      <button class="btn" aria-label="Add" id="addbtn"></button>
+    </form>
+    <div class="chips" id="nav"></div>
+    <div class="filters">
+      <select id="proj" aria-label="Project"></select>
+      <input id="search" type="search" placeholder="Search" aria-label="Search">
+    </div>
+  </header>
+  <main id="list"></main>
+</div>
+<div id="gate" class="hidden"></div>
+<div id="sheet-root"></div>
+<div id="menu-root"></div>
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+// ------------------------------------------------------------------ settings of the Google project
+const GOOGLE = {
+  clientId: '785368500845-2odo9dcbi8dgh3v56sb23pb4t78g4b5v.apps.googleusercontent.com',
+  apiKey: 'AIzaSyDGFVzSuCTK1mit7fyBxFz6yPBaw5OAcW4',      // only for the file chooser (Google Picker)
+  appId: '785368500845',
+  scope: 'https://www.googleapis.com/auth/drive.file',
+  fileName: 'tasks-data.json',
+};
+
+// ------------------------------------------------------------------ helpers
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const low = s => (s || '').toLowerCase();
+const uid = () => [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2, '0')).join('');
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const STATUS = { todo: 'To do', doing: 'In progress', blocked: 'Waiting', done: 'Done' };
+const PRIO = ['None', 'Low', 'Medium', 'High'];
+const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every working day (Mon–Fri)'], ['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Every month']];
+const REASONS = ['Waiting for parts', 'Waiting for the customer', 'Waiting for a colleague', 'Waiting for information'];
+const NAV = [['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done'], ['all', 'All']];
+const TOMB_DAYS = 90;
+const ICONS = {
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  circle: '<circle cx="12" cy="12" r="8.5"/>',
+  half: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/>',
+  pause: '<circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/>',
+  checkc: '<circle cx="12" cy="12" r="8.5" fill="currentColor"/><path d="m8.5 12.2 2.4 2.4 4.8-5" stroke="#fff"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  back: '<path d="m15 6-6 6 6 6"/>',
+  more: '<circle cx="12" cy="5.5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="18.5" r="1.5" fill="currentColor"/>',
+  trash: '<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  file: '<path d="M6 3.5h8l4.5 4.5v12.5H6z"/><path d="M14 3.5V8h4.5"/>',
+  out: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H4"/>',
+  folder: '<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.8l2 2.3h7.2a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>',
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+};
+const icon = n => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
+
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayISO = () => isoOf(new Date());
+const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+function fmtDay(d) {
+  const diff = Math.round((dayStart(d) - dayStart(new Date())) / 86400000);
+  if (diff === 0) return 'Today'; if (diff === 1) return 'Tomorrow'; if (diff === -1) return 'Yesterday';
+  const s = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return d.getFullYear() === new Date().getFullYear() ? s : `${s} ${d.getFullYear()}`;
+}
+const fmtStamp = ms => { const d = new Date(ms); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmtHM = ms => { const m = Math.round((ms || 0) / 60000); return `${Math.floor(m / 60)}:${pad(m % 60)}`; };
+
+// ------------------------------------------------------------------ task rules (same as the PC program)
+function natCmp(a, b) {
+  const x = a.split(/(\d+)/), y = b.split(/(\d+)/);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    if (x[i] === y[i]) continue;
+    const nx = /^\d+$/.test(x[i]), ny = /^\d+$/.test(y[i]);
+    if (nx && ny) return +x[i] - +y[i];
+    return low(x[i]) < low(y[i]) ? -1 : low(x[i]) > low(y[i]) ? 1 : 0;
+  }
+  return x.length - y.length;
+}
+function normCats(items) {
+  const out = [], seen = new Set();
+  for (const c of items) {
+    const p = String(c.project || '').trim().replace(/^@+/, ''), sub = String(c.sub || '').trim().replace(/^\++/, '');
+    const k = low(p) + '|' + low(sub);
+    if (!p || seen.has(k)) continue;
+    seen.add(k); out.push({ project: p, sub, done: !!c.done && !!sub });
+  }
+  const withSubs = new Set(out.filter(c => c.sub).map(c => low(c.project)));
+  const order = [...new Set(out.map(c => low(c.project)))];
+  out.sort((a, b) => (order.indexOf(low(a.project)) - order.indexOf(low(b.project))) || natCmp(a.sub, b.sub));
+  return out.filter(c => c.sub || !withSubs.has(low(c.project)));
+}
+function normRegistry(items, tasks) {
+  const reg = new Map();
+  const add = (p, sub = '') => {
+    p = String(p || '').trim(); sub = String(sub || '').trim(); if (!p) return;
+    if (!reg.has(low(p))) reg.set(low(p), { name: p, subs: [] });
+    const r = reg.get(low(p)); if (sub && !r.subs.some(x => low(x) === low(sub))) r.subs.push(sub);
+  };
+  for (const it of items || []) { add(it.name); for (const s of it.subs || []) add(it.name, s); }
+  for (const t of tasks) for (const c of t.cats || []) add(c.project, c.sub);
+  const out = [...reg.values()].sort((a, b) => low(a.name) < low(b.name) ? -1 : low(a.name) > low(b.name) ? 1 : 0);
+  for (const r of out) r.subs.sort(natCmp);
+  return out;
+}
+const newTask = () => ({ id: uid(), title: '', notes: '', status: 'todo', reason: '', priority: 0, due: '', cats: [], tags: [], subs: [], log: [], files: [], time: [], hist: [], repeat: '', created: Date.now(), doneAt: null, mod: 0 });
+function setStatus(t, status, reason = null) {
+  const old = t.status;
+  if (status === 'done') { if (old !== 'done' || !t.doneAt) t.doneAt = Date.now(); } else t.doneAt = null;
+  if (status === 'blocked') { if (reason != null) t.reason = reason.trim(); } else t.reason = '';
+  if (old !== status) (t.hist = t.hist || []).push({ at: Date.now(), from: old || '', to: status });
+  t.status = status;
+  if (status === 'done') for (const s of t.time || []) if (s.e == null) s.e = Math.max(Date.now(), s.s);
+}
+function repeatStep(d, rep) {
+  switch (rep) {
+    case 'weekdays': { d = addDays(d, 1); while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1); return d; }
+    case 'weekly': return addDays(d, 7);
+    case 'biweekly': return addDays(d, 14);
+    case 'monthly': { const y = d.getFullYear(), m = d.getMonth() + 1, last = new Date(y, m + 1, 0).getDate(); return new Date(y, m, Math.min(d.getDate(), last)); }
+    default: return addDays(d, 1);
+  }
+}
+function spawnNext(t) {
+  const today = dayStart(new Date());
+  let d = t.due ? parseISO(t.due) : new Date(today);
+  d = repeatStep(d, t.repeat); while (dayStart(d) <= today) d = repeatStep(d, t.repeat);
+  const n = JSON.parse(JSON.stringify(t));
+  Object.assign(n, { id: uid(), status: 'todo', reason: '', due: isoOf(d), log: [], time: [], hist: [], created: Date.now(), doneAt: null });
+  for (const s of n.subs) { s.id = uid(); s.done = false; }
+  for (const c of n.cats) c.done = false;
+  t.repeat = '';
+  return n;
+}
+function parseQuick(text, defProject = '') {
+  const t = newTask(), loose = []; let last = '';
+  const W = '[\\p{L}\\p{N}_-]+';
+  text = text.replace(new RegExp(`(^|\\s)#(${W})`, 'gu'), (m, a, g) => { if (!t.tags.includes(g)) t.tags.push(g); return a; });
+  text = text.replace(new RegExp(`(^|\\s)(?:@(${W}(?:/${W})?)|\\+(${W}))`, 'gu'), (m, a, p, s) => {
+    if (p) {
+      const [pp, sub = ''] = p.split('/');
+      t.cats = normCats([...t.cats, { project: pp, sub }]); last = pp;
+      for (const x of loose) t.cats = normCats([...t.cats, { project: pp, sub: x }]);
+      loose.length = 0;
+    } else if (last) t.cats = normCats([...t.cats, { project: last, sub: s }]);
+    else loose.push(s);
+    return a;
+  });
+  text = text.replace(/(^|\s)(!{1,3})(?=\s|$)/g, (m, a, b) => { t.priority = b.length; return a; });
+  for (const x of loose) {
+    const owners = (D.projects || []).filter(r => r.subs.some(y => low(y) === low(x))).map(r => r.name);
+    const p = defProject || (owners.length === 1 ? owners[0] : '');
+    if (p) t.cats = normCats([...t.cats, { project: p, sub: x }]);
+    else if (!t.tags.includes(x)) t.tags.push(x);
+  }
+  t.title = text.replace(/\s+/g, ' ').trim();
+  return t;
+}
+const dueState = t => { if (t.status === 'done' || !t.due) return ''; const td = todayISO(); return t.due < td ? 'late' : t.due === td ? 'today' : ''; };
+const isArchived = t => t.status === 'done' && t.doneAt && t.doneAt < dayStart(addDays(new Date(), -((D.settings || {}).archiveDays || 30)));
+const isRunning = t => (t.time || []).some(s => s.e == null);
+const timeSpent = t => (t.time || []).reduce((a, s) => a + Math.max(0, (s.e ?? Date.now()) - s.s), 0);
+const projectsOf = t => [...new Set(t.cats.map(c => c.project))];
+const inProject = (t, p) => t.cats.some(c => low(c.project) === low(p));
+const findTask = id => D.tasks.find(t => t.id === id);
+
+// ------------------------------------------------------------------ merging two copies (same rules as the PC program)
+const taskMod = t => (+t.mod || 0) || (+t.created || 0);
+function mergeData(local, remote) {
+  const now = Date.now(), tomb = new Map();
+  for (const x of [...(local.deleted || []), ...(remote.deleted || [])]) tomb.set(x.id, Math.max(tomb.get(x.id) || 0, x.at));
+  const [newer, older] = (+remote.modAt || 0) > (+local.modAt || 0) ? [remote, local] : [local, remote];
+  const nmap = new Map(newer.tasks.map(t => [t.id, t])), omap = new Map(older.tasks.map(t => [t.id, t]));
+  const pick = i => {
+    const a = nmap.get(i), b = omap.get(i);
+    const t = !b ? a : !a ? b : (taskMod(b) > taskMod(a) ? b : a);
+    return tomb.has(i) && tomb.get(i) >= taskMod(t) ? null : t;
+  };
+  const out = newer.tasks.map(t => pick(t.id)).filter(Boolean);
+  const have = new Set(out.map(t => t.id));
+  older.tasks.forEach((t, k) => {
+    if (nmap.has(t.id) || have.has(t.id)) return;
+    const p = pick(t.id); if (!p) return;
+    const nxt = older.tasks.slice(k + 1).find(x => have.has(x.id));
+    const idx = nxt ? out.findIndex(x => x.id === nxt.id) : out.length;
+    out.splice(idx < 0 ? out.length : idx, 0, p); have.add(p.id);
+  });
+  const deleted = [...tomb].filter(([i, at]) => !have.has(i) && at > now - TOMB_DAYS * 86400000)
+    .map(([id, at]) => ({ id, at })).sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
+  const tasks = JSON.parse(JSON.stringify(out));
+  return { v: 3, modAt: Math.max(+local.modAt || 0, +remote.modAt || 0), tasks, templates: JSON.parse(JSON.stringify(newer.templates || [])),
+    projects: normRegistry(newer.projects, tasks), settings: local.settings || {}, deleted };
+}
+function prepare(d) {
+  d = d && typeof d === 'object' ? d : {};
+  d.tasks = Array.isArray(d.tasks) ? d.tasks.filter(t => t && t.id) : [];
+  for (const t of d.tasks) {
+    for (const k of ['cats', 'tags', 'subs', 'log', 'files', 'time', 'hist']) if (!Array.isArray(t[k])) t[k] = [];
+    for (const k of ['title', 'notes', 'reason', 'due', 'repeat']) if (typeof t[k] !== 'string') t[k] = '';
+    if (!STATUS[t.status]) t.status = 'todo';
+    t.priority = Math.max(0, Math.min(3, +t.priority || 0));
+  }
+  d.templates = Array.isArray(d.templates) ? d.templates : [];
+  d.projects = normRegistry(Array.isArray(d.projects) ? d.projects : [], d.tasks);
+  d.settings = d.settings && typeof d.settings === 'object' ? d.settings : {};
+  d.deleted = Array.isArray(d.deleted) ? d.deleted.filter(x => x && x.id && x.at) : [];
+  d.v = 3; d.modAt = +d.modAt || 0;
+  return d;
+}
+const core = d => JSON.stringify([d.tasks, d.templates, d.projects, d.deleted]);
+
+// ------------------------------------------------------------------ state
+let D = null;
+const UI = { nav: lsGet('tasks.m.nav') || 'active', project: lsGet('tasks.m.project') || '', q: '', open: null };
+const G = {
+  token: null, exp: 0, client: null, asking: false, email: lsGet('tasks.m.email') || '',
+  fileId: lsGet('tasks.m.fileId'), version: lsGet('tasks.m.version'), dirty: lsGet('tasks.m.dirty') === '1',
+  busy: false, again: false, state: 'idle', msg: '', at: 0, timer: null, wanted: lsGet('tasks.m.on') === '1',
+};
+function saveLocal() {
+  lsSet('tasks.m.data', JSON.stringify(D)); lsSet('tasks.m.dirty', G.dirty ? '1' : '0');
+  lsSet('tasks.m.version', G.version); lsSet('tasks.m.fileId', G.fileId);
+}
+try { const raw = lsGet('tasks.m.data'); if (raw) D = prepare(JSON.parse(raw)); } catch (e) { D = null; }
+
+// Every change: the task gets the time of the change, the copy is saved on the phone and sent to Drive.
+function change(fn, quiet = false) {
+  const before = new Map(D.tasks.map(t => [t.id, JSON.stringify(t)]));
+  const spawned = [];
+  fn();
+  for (const t of [...D.tasks]) if (t.status === 'done' && t.repeat) { const n = spawnNext(t); D.tasks.splice(D.tasks.indexOf(t), 0, n); spawned.push(n); }
+  const now = Date.now(), ids = new Set();
+  for (const t of D.tasks) { ids.add(t.id); if (before.get(t.id) !== JSON.stringify(t)) t.mod = now; }
+  const gone = [...before.keys()].filter(i => !ids.has(i));
+  D.deleted = (D.deleted || []).filter(x => !ids.has(x.id) && !gone.includes(x.id)).concat(gone.map(id => ({ id, at: now })));
+  D.projects = normRegistry(D.projects, D.tasks);
+  D.modAt = now; G.dirty = true; saveLocal();
+  render(); if (UI.open) renderSheet();
+  if (spawned.length && !quiet) toast(`Repeats: next “${spawned[0].title}” due ${fmtDay(parseISO(spawned[0].due))}`);
+  syncSoon(800);
+}
+
+// ------------------------------------------------------------------ Google sign-in and Drive
+const tokenOK = (margin = 60000) => G.token && Date.now() < G.exp - margin;
+function tokenClient() {
+  if (G.client) return G.client;
+  if (!(window.google && google.accounts && google.accounts.oauth2)) return null;
+  G.client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE.clientId, scope: GOOGLE.scope,
+    callback: r => {
+      G.asking = false;
+      if (r.error || !r.access_token) { setSync('auth'); return; }
+      G.token = r.access_token; G.exp = Date.now() + (+r.expires_in || 3600) * 1000;
+      G.wanted = true; lsSet('tasks.m.on', '1');
+      afterSignIn();
+    },
+    error_callback: () => { G.asking = false; setSync('auth'); },
+  });
+  return G.client;
+}
+function signIn(first = false) {
+  const c = tokenClient();
+  if (!c) { toast('Google is not reachable: check the connection and try again.', { error: true }); return; }
+  if (G.asking) return;
+  G.asking = true; setTimeout(() => { G.asking = false; }, 60000);
+  c.requestAccessToken({ prompt: first ? 'consent' : '', login_hint: G.email || undefined });
+}
+// The permission lasts one hour: on a tap, renew it if needed (Google's window may flash for a moment).
+addEventListener('click', () => { if (G.wanted && !G.asking && !tokenOK(5 * 60000) && tokenClient()) signIn(); }, true);
+
+async function gfetch(url, opts = {}) {
+  const r = await fetch(url.startsWith('http') ? url : 'https://www.googleapis.com/drive/v3/' + url,
+    { ...opts, headers: { Authorization: 'Bearer ' + G.token, ...(opts.headers || {}) } });
+  if (r.status === 401) { G.token = null; throw { auth: true }; }
+  if (!r.ok) { let m = ''; try { m = (await r.json()).error.message; } catch (e) { /* no detail */ } throw { status: r.status, msg: m || 'HTTP ' + r.status }; }
+  return r;
+}
+async function afterSignIn() {
+  try {
+    if (!G.email) {
+      const u = await (await gfetch('about?fields=user(emailAddress)')).json();
+      G.email = (u.user && u.user.emailAddress) || ''; lsSet('tasks.m.email', G.email);
+    }
+    if (!G.fileId) {
+      const q = encodeURIComponent(`name='${GOOGLE.fileName}' and trashed=false`);
+      const files = (await (await gfetch(`files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id)`)).json()).files || [];
+      if (!files.length) { showGate('nofile'); return; }
+      useFile(files[0].id); return;
+    }
+    sync();
+  } catch (e) { syncFailed(e); }
+}
+function useFile(id) {
+  if (id !== G.fileId) { G.fileId = id; G.version = null; if (D && !G.dirty) D = null; saveLocal(); }
+  sync();
+}
+async function createFile() {
+  const data = D || prepare({});
+  data.modAt = Date.now();
+  const boundary = 'tasks' + Date.now();
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name: GOOGLE.fileName, mimeType: 'application/json' })}\r\n`
+    + `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(data)}\r\n--${boundary}--`;
+  try {
+    const j = await (await gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version',
+      { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body })).json();
+    D = data; G.fileId = j.id; G.version = j.version; G.dirty = false; saveLocal(); showApp(); setSync('ok');
+  } catch (e) { syncFailed(e); }
+}
+async function pickFile() {
+  if (!tokenOK()) { signIn(); return; }
+  try {
+    await new Promise((res, rej) => {
+      if (window.google && google.picker) return res();
+      const s = document.createElement('script'); s.src = 'https://apis.google.com/js/api.js';
+      s.onload = () => gapi.load('picker', { callback: res, onerror: rej }); s.onerror = rej; document.head.appendChild(s);
+    });
+  } catch (e) { toast('The file chooser could not be loaded.', { error: true }); return; }
+  const view = new google.picker.DocsView(google.picker.ViewId.DOCS).setMimeTypes('application/json,text/plain,application/octet-stream').setQuery('tasks-data').setMode(google.picker.DocsViewMode.LIST);
+  new google.picker.PickerBuilder().setAppId(GOOGLE.appId).setOAuthToken(G.token).setDeveloperKey(GOOGLE.apiKey)
+    .addView(view).setTitle('Choose tasks-data.json')
+    .setCallback(d => { if (d.action === google.picker.Action.PICKED && d.docs && d.docs[0]) useFile(d.docs[0].id); })
+    .build().setVisible(true);
+}
+async function upload() {
+  const body = JSON.stringify(D); G.dirty = false; saveLocal();
+  try {
+    const j = await (await gfetch(`https://www.googleapis.com/upload/drive/v3/files/${G.fileId}?uploadType=media&fields=version`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body })).json();
+    G.version = j.version; saveLocal();
+  } catch (e) { G.dirty = true; saveLocal(); throw e; }
+}
+async function sync() {
+  if (!G.fileId) return;
+  if (G.busy) { G.again = true; return; }
+  if (!tokenOK()) { setSync('auth'); return; }
+  G.busy = true; setSync('busy');
+  try {
+    let meta;
+    try { meta = await (await gfetch(`files/${G.fileId}?fields=version,trashed`)).json(); }
+    catch (e) { if (e.status === 404) { G.fileId = null; saveLocal(); G.busy = false; afterSignIn(); return; } throw e; }
+    if (meta.trashed) throw { msg: 'the file is in the Drive trash' };
+    if (meta.version !== G.version || !D) {
+      let remote = await (await gfetch(`files/${G.fileId}?alt=media`)).json().catch(() => null);
+      if (!remote || !Array.isArray(remote.tasks)) throw { msg: 'the file on Drive is not readable' };
+      remote = prepare(remote);
+      const hadChanges = !!D && core(D) !== core(remote);
+      if (!D) D = remote;
+      else { const m = mergeData(D, remote); m.settings = remote.settings; D = prepare(m); }
+      G.version = meta.version;
+      const needUp = core(D) !== core(remote);
+      G.dirty = false; saveLocal(); showApp(); render(); if (UI.open) renderSheet();
+      if (needUp) await upload();
+      else if (hadChanges) toast('Updated from the PC');
+    } else if (G.dirty) await upload();
+    setSync('ok');
+  } catch (e) { syncFailed(e); }
+  G.busy = false;
+  if (G.again) { G.again = false; syncSoon(300); }
+}
+function syncFailed(e) {
+  G.busy = false;
+  if (e && e.auth) setSync('auth');
+  else setSync('error', (e && e.msg) || (navigator.onLine === false || e instanceof TypeError ? 'offline' : 'error'));
+}
+function syncSoon(ms = 1200) { clearTimeout(G.timer); G.timer = setTimeout(sync, ms); }
+function setSync(state, msg = '') {
+  G.state = state; G.msg = msg; if (state === 'ok') G.at = Date.now();
+  const el = $('#sync'); if (!el) return;
+  const t = { ok: G.dirty ? 'Saved on phone' : 'Synced ' + (G.at ? `${pad(new Date(G.at).getHours())}:${pad(new Date(G.at).getMinutes())}` : ''),
+    busy: 'Syncing…', auth: 'Tap to sync', error: (msg || 'Error') + ' · retry', idle: G.dirty ? 'Saved on phone' : 'Not synced' }[state];
+  $('#synctext').textContent = t;
+  el.className = 'sync ' + ({ busy: 'busy', auth: 'warn', error: 'bad' }[state] || '');
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && G.fileId && tokenOK()) sync(); });
+setInterval(() => { if (document.visibilityState === 'visible' && G.fileId && tokenOK() && !G.busy) sync(); }, 30000);
+addEventListener('online', () => { if (tokenOK()) syncSoon(200); });
+
+// ------------------------------------------------------------------ screens
+function showApp() { $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); }
+function showGate(kind) {
+  const g = $('#gate'); $('#app').classList.add('hidden'); g.classList.remove('hidden');
+  const logo = `<div class="logo">${icon('check')}</div>`;
+  if (kind === 'nofile') {
+    g.innerHTML = `<div class="gate">${logo}<h1>Choose your tasks file</h1>
+      <p>Signed in as <b>${esc(G.email)}</b>. One last step, only the first time: show Tasks which file to use.</p>
+      <p>Pick <b>tasks-data.json</b> in the <b>Tasks</b> folder of your Drive. Tasks will see only that file.</p>
+      <button class="btn" data-act="pick">${icon('file')} Choose tasks-data.json</button>
+      <button class="btn ghost" data-act="signout">${icon('out')} Use another account</button></div>`;
+  } else {
+    g.innerHTML = `<div class="gate">${logo}<h1>Tasks</h1>
+      <p>Your tasks, the same as on the PC. Sign in with the Google account where Tasks keeps its file.</p>
+      <button class="btn" data-act="signin">Sign in with Google</button>
+      <p class="hint">Tasks can only see the files it created itself, nothing else on your Drive.</p></div>`;
+  }
+}
+
+// ------------------------------------------------------------------ list
+function matchNav(t, nav) {
+  const arch = isArchived(t);
+  switch (nav) {
+    case 'active': return t.status !== 'done';
+    case 'all': return !arch;
+    case 'done': return t.status === 'done' && !arch;
+    case 'late': case 'today': return dueState(t) === nav;
+    default: return t.status === nav;
+  }
+}
+function filtered(nav = UI.nav) {
+  const q = low(UI.q.trim());
+  return D.tasks.filter(t => {
+    if (UI.project && !inProject(t, UI.project)) return false;
+    if (q) {
+      const hay = [t.title, t.notes, t.reason, t.tags.join(' '), t.cats.map(c => c.project + ' ' + c.sub).join(' '), t.subs.map(s => s.t).join(' '), t.log.map(e => e.t).join(' ')].join(' ').toLowerCase();
+      return hay.includes(q);
+    }
+    return matchNav(t, nav);
+  });
+}
+function card(t) {
+  const st = t.status, ds = dueState(t);
+  const ic = { todo: 'circle', doing: 'half', blocked: 'pause', done: 'checkc' }[st];
+  const meta = [];
+  if (t.due) meta.push(`<span class="due ${ds}">${ds === 'late' ? 'Overdue · ' : ''}${esc(fmtDay(parseISO(t.due)))}</span>`);
+  if (st === 'blocked' && t.reason) meta.push(`<span class="reason">${esc(t.reason)}</span>`);
+  if (isRunning(t)) meta.push(`<span class="run">● ${fmtHM(timeSpent(t))}</span>`);
+  for (const p of projectsOf(t)) {
+    const subs = t.cats.filter(c => c.project === p && c.sub);
+    const left = subs.filter(c => !c.done);
+    meta.push(`<span>${esc(p)}${subs.length ? ' › ' + (left.length ? esc(left.map(c => c.sub).join(', ')) : '✔') : ''}${subs.length ? ` <small>${subs.length - left.length}/${subs.length}</small>` : ''}</span>`);
+  }
+  if (t.subs.length) meta.push(`<span>☑ ${t.subs.filter(s => s.done).length}/${t.subs.length}</span>`);
+  for (const g of t.tags) meta.push(`<span class="tagx">#${esc(g)}</span>`);
+  if (st === 'done' && t.doneAt) meta.push(`<span>Done ${esc(fmtDay(new Date(t.doneAt)))}</span>`);
+  return `<div class="card ${st}" data-id="${t.id}">
+    <button class="chk ${st}" data-act="done" aria-label="Done">${icon(ic)}</button>
+    <div class="cbody" data-act="open"><div class="title">${t.priority ? `<span class="prio">${'!'.repeat(t.priority)}</span>` : ''}${esc(t.title)}</div>
+    ${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div></div>`;
+}
+function render() {
+  if (!D) return;
+  // navigation chips with counts
+  const counts = Object.fromEntries(NAV.map(([k]) => [k, 0]));
+  const saveQ = UI.q; UI.q = '';
+  for (const [k] of NAV) counts[k] = filtered(k).length;
+  UI.q = saveQ;
+  $('#nav').innerHTML = NAV.map(([k, l]) => `<button class="chip ${UI.nav === k && !UI.q.trim() ? 'on' : ''}" data-act="nav" data-k="${k}">${l}${counts[k] ? ` <span class="n">${counts[k]}</span>` : ''}</button>`).join('');
+  const sel = $('#proj');
+  const opts = `<option value="">All projects</option>` + D.projects.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
+  if (sel.dataset.h !== opts) { sel.innerHTML = opts; sel.dataset.h = opts; }
+  if (UI.project && !D.projects.some(p => p.name === UI.project)) UI.project = '';
+  sel.value = UI.project;
+  $('#quick').placeholder = UI.project ? `Add to ${UI.project}…  #tag +sub !!` : 'Add a task…  #tag @project/sub !!';
+  // the tasks
+  const rows = filtered();
+  let h = '';
+  if (UI.q.trim() || !['active', 'all'].includes(UI.nav)) {
+    let list = rows;
+    if (UI.nav === 'done' && !UI.q.trim()) list = [...rows].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    h = list.map(card).join('');
+  } else {
+    for (const st of ['doing', 'todo', 'blocked', 'done']) {
+      const g = rows.filter(t => t.status === st);
+      if (!g.length) continue;
+      h += `<div class="group">${STATUS[st]} <span>${g.length}</span></div>` + g.map(card).join('');
+    }
+  }
+  $('#list').innerHTML = h || `<div class="empty">${UI.q.trim() ? 'Nothing found.' : 'Nothing here.'}</div>`;
+  setSync(G.state, G.msg);
+}
+
+// ------------------------------------------------------------------ task page
+function renderSheet() {
+  const t = UI.open && findTask(UI.open);
+  const root = $('#sheet-root');
+  if (!t) { root.innerHTML = ''; UI.open = null; return; }
+  const scroll = root.firstElementChild ? root.firstElementChild.scrollTop : 0;
+  const focus = document.activeElement && document.activeElement.id;
+  const seg = (k, items, cur) => `<div class="seg">${items.map(([v, l]) => `<button class="${String(cur) === String(v) ? 'on' : ''}" data-act="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+  const reasons = [...new Set([...REASONS, ...D.tasks.map(x => x.reason).filter(Boolean)])];
+  let cats = '';
+  for (const p of projectsOf(t)) {
+    const subs = t.cats.filter(c => c.project === p && c.sub);
+    cats += `<div class="proj"><div class="ph">${icon('folder')}<span style="flex:1">${esc(p)}</span><button class="x" data-act="rm-proj" data-p="${esc(p)}" aria-label="Remove">${icon('x')}</button></div>
+      ${subs.length ? `<div class="subchips">${subs.map(c => `<button class="subchip ${c.done ? 'on' : ''}" data-act="tick-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}">${c.done ? '✔ ' : ''}${esc(c.sub)}</button>`).join('')}</div>` : ''}</div>`;
+  }
+  root.innerHTML = `<div class="sheet">
+    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Task</b><div class="spacer"></div>
+      <button class="icon-btn" data-act="dup" aria-label="Duplicate">${icon('copy')}</button>
+      <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button></div>
+    <div class="form">
+      <textarea id="f-title" class="field ttl" rows="2" data-f="title">${esc(t.title)}</textarea>
+      <span class="lbl">Status</span>${seg('status', Object.entries(STATUS), t.status)}
+      ${t.status === 'blocked' ? `<span class="lbl">Waiting for</span><input id="f-reason" class="field" list="reasons" data-f="reason" value="${esc(t.reason)}" placeholder="What is it waiting for?"><datalist id="reasons">${reasons.map(r => `<option value="${esc(r)}">`).join('')}</datalist>` : ''}
+      <span class="lbl">Priority</span>${seg('prio', PRIO.map((l, i) => [i, l]), t.priority)}
+      <span class="lbl">Due</span><div class="row"><input id="f-due" class="field" type="date" data-f="due" value="${esc(t.due)}">${t.due ? `<button class="btn ghost" data-act="clear-due">Clear</button>` : ''}</div>
+      <span class="lbl">Repeat</span><select id="f-repeat" class="field" data-f="repeat">${REPEATS.map(([v, l]) => `<option value="${v}" ${t.repeat === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="lbl">Project and subcategories</span><div class="cats">${cats}
+        <div class="row"><input id="f-addcat" class="field" placeholder="project or project/sub" list="projs" autocapitalize="off"><button class="btn ghost" data-act="add-cat">${icon('plus')}</button></div>
+        <datalist id="projs">${D.projects.flatMap(p => [p.name, ...p.subs.map(s => p.name + '/' + s)]).map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+      <span class="lbl">Tags</span><input id="f-tags" class="field" data-f="tags" value="${esc(t.tags.join(', '))}" placeholder="plc, hmi" autocapitalize="off">
+      <span class="lbl">Checklist ${t.subs.length ? `· ${t.subs.filter(s => s.done).length}/${t.subs.length}` : ''}</span>
+      <div class="list">${t.subs.map(s => `<div class="li ${s.done ? 'done' : ''}"><button class="box ${s.done ? 'on' : ''}" data-act="tick-sub" data-s="${s.id}">${s.done ? icon('check') : ''}</button><span class="t">${esc(s.t)}</span><button class="x" data-act="rm-sub" data-s="${s.id}">${icon('x')}</button></div>`).join('')}
+        <div class="li"><input id="f-addsub" class="field" style="border:0;padding:6px 2px" placeholder="Add a step…" enterkeyhint="done"><button class="x" data-act="add-sub">${icon('plus')}</button></div></div>
+      <span class="lbl">Notes</span><textarea id="f-notes" class="field" rows="4" data-f="notes">${esc(t.notes)}</textarea>
+      <span class="lbl">Journal</span>
+      <div class="list log"><div class="li"><input id="f-addlog" class="field" style="border:0;padding:6px 2px" placeholder="What happened?" enterkeyhint="done"><button class="x" data-act="add-log">${icon('plus')}</button></div>
+        ${[...t.log].reverse().map(e => `<div class="li"><span class="t"><span class="when">${fmtStamp(e.at)}</span>${esc(e.t)}</span></div>`).join('')}</div>
+      <div class="info">Created ${t.created ? fmtStamp(t.created) : '—'}${t.doneAt ? `<br>Done ${fmtStamp(t.doneAt)}` : ''}${timeSpent(t) ? `<br>Time tracked ${fmtHM(timeSpent(t))}${isRunning(t) ? ' (timer running on the PC)' : ''}` : ''}${t.files.length ? `<br>${t.files.length} attached file${t.files.length > 1 ? 's' : ''} (on the PC)` : ''}</div>
+    </div></div>`;
+  root.firstElementChild.scrollTop = scroll;
+  if (focus && $('#' + focus)) $('#' + focus).focus();
+}
+function openTask(id) { UI.open = id; renderSheet(); history.pushState({ task: id }, ''); }
+function closeTask() { UI.open = null; renderSheet(); render(); }
+addEventListener('popstate', () => { if (UI.open) closeTask(); });
+
+// field edits: saved when the field is left
+document.addEventListener('change', e => {
+  const el = e.target, f = el.dataset && el.dataset.f;
+  if (el.id === 'proj') { UI.project = el.value; lsSet('tasks.m.project', UI.project); render(); return; }
+  if (!f || !UI.open) return;
+  const t = findTask(UI.open); if (!t) return;
+  let v = el.value;
+  if (f === 'title') { v = v.replace(/\s+/g, ' ').trim(); if (!v) { el.value = t.title; toast('A task needs a title.', { error: true }); return; } }
+  if (f === 'tags') v = [...new Set(v.split(/[,\s]+/).map(x => x.replace(/^#/, '').trim()).filter(Boolean))];
+  if (f === 'reason') v = v.trim();
+  if (JSON.stringify(t[f]) === JSON.stringify(v)) return;
+  change(() => { t[f] = v; });
+});
+
+// ------------------------------------------------------------------ taps
+const ACT = {
+  signin: () => signIn(!G.email),
+  retry: () => { if (tokenOK()) afterSignIn(); else signIn(); },
+  pick: () => pickFile(),
+  create: () => { if (confirm('Start a new, empty task list on this Google Drive?')) createFile(); },
+  signout: () => signOut(),
+  nav: el => { UI.nav = el.dataset.k; UI.q = ''; $('#search').value = ''; lsSet('tasks.m.nav', UI.nav); render(); scrollTo(0, 0); },
+  open: el => openTask(el.closest('[data-id]').dataset.id),
+  done: el => {
+    const t = findTask(el.closest('[data-id]').dataset.id); if (!t) return;
+    const id = t.id, rep = t.repeat;
+    change(() => setStatus(t, t.status === 'done' ? 'todo' : 'done'));
+    if (t.status === 'done' && !rep) toast('Done: ' + t.title, { undo: () => { const x = findTask(id); if (x) change(() => setStatus(x, 'todo')); } });
+  },
+  close: () => history.back(),
+  status: el => { const t = findTask(UI.open); change(() => setStatus(t, el.dataset.v, el.dataset.v === 'blocked' ? (t.reason || '') : null)); },
+  prio: el => { const t = findTask(UI.open); change(() => { t.priority = +el.dataset.v; }); },
+  'clear-due': () => { const t = findTask(UI.open); change(() => { t.due = ''; }); },
+  'tick-cat': el => { const t = findTask(UI.open); const c = t.cats.find(c => c.project === el.dataset.p && c.sub === el.dataset.s); if (c) change(() => { c.done = !c.done; }); },
+  'rm-proj': el => { const t = findTask(UI.open); if (confirm(`Remove “${el.dataset.p}” from this task?`)) change(() => { t.cats = t.cats.filter(c => c.project !== el.dataset.p); }); },
+  'add-cat': () => {
+    const t = findTask(UI.open), v = $('#f-addcat').value.trim().replace(/^@/, ''); if (!v) return;
+    const [p, ...rest] = v.split('/'), sub = rest.join('/').trim();
+    const known = D.projects.find(r => low(r.name) === low(p.trim()));
+    change(() => { t.cats = normCats([...t.cats, { project: known ? known.name : p.trim(), sub }]); });
+  },
+  'tick-sub': el => { const t = findTask(UI.open); const s = t.subs.find(s => s.id === el.dataset.s); if (s) change(() => { s.done = !s.done; }); },
+  'rm-sub': el => { const t = findTask(UI.open); change(() => { t.subs = t.subs.filter(s => s.id !== el.dataset.s); }); },
+  'add-sub': () => { const t = findTask(UI.open), v = $('#f-addsub').value.trim(); if (v) change(() => t.subs.push({ id: uid(), t: v, done: false })); },
+  'add-log': () => { const t = findTask(UI.open), v = $('#f-addlog').value.trim(); if (v) change(() => t.log.push({ id: uid(), at: Date.now(), t: v })); },
+  delete: () => {
+    const t = findTask(UI.open); if (!t || !confirm(`Delete “${t.title}”?`)) return;
+    const copy = JSON.parse(JSON.stringify(t)), idx = D.tasks.indexOf(t);
+    history.back();
+    change(() => { D.tasks = D.tasks.filter(x => x.id !== t.id); });
+    toast('Deleted: ' + t.title, { undo: () => change(() => { D.tasks.splice(Math.min(idx, D.tasks.length), 0, copy); }) });
+  },
+  dup: () => {
+    const t = findTask(UI.open); const c = JSON.parse(JSON.stringify(t));
+    Object.assign(c, { id: uid(), created: Date.now(), time: [], hist: [], log: [], title: t.title + ' (copy)' });
+    for (const s of c.subs) s.id = uid();
+    change(() => D.tasks.splice(D.tasks.indexOf(t) + 1, 0, c));
+    UI.open = c.id; renderSheet(); toast('Duplicated');
+  },
+  menu: () => {
+    $('#menu-root').innerHTML = `<div class="scrim" data-act="menu-close"></div><div class="menu">
+      <div class="who">${G.email ? 'Google: ' + esc(G.email) : 'Not signed in'}</div>
+      <button data-act="sync-now">${icon('refresh')} Sync now</button>
+      <button data-act="pick">${icon('file')} Choose another file</button>
+      <button data-act="signout">${icon('out')} Sign out</button></div>`;
+  },
+  'menu-close': () => { $('#menu-root').innerHTML = ''; },
+  'sync-now': () => { $('#menu-root').innerHTML = ''; if (tokenOK()) sync(); else signIn(); },
+  sync: () => { if (!tokenOK()) signIn(); else sync(); },
+};
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (a && ACT[a.dataset.act]) { e.preventDefault(); if (a.closest('.menu')) $('#menu-root').innerHTML = ''; ACT[a.dataset.act](a, e); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const id = e.target.id;
+  if (id === 'f-addsub' || id === 'f-addlog' || id === 'f-addcat') { e.preventDefault(); ACT[{ 'f-addsub': 'add-sub', 'f-addlog': 'add-log', 'f-addcat': 'add-cat' }[id]](); }
+  else if (id === 'f-title') { e.preventDefault(); e.target.blur(); }
+});
+$('#quickform').addEventListener('submit', e => {
+  e.preventDefault();
+  const el = $('#quick'), text = el.value.trim(); if (!text) return;
+  const t = parseQuick(text, UI.project);
+  if (!t.title) { toast('Write a title first.', { error: true }); return; }
+  if (!t.cats.length && UI.project) t.cats = normCats([{ project: UI.project, sub: '' }]);
+  if (['doing', 'blocked'].includes(UI.nav)) setStatus(t, UI.nav, '');
+  change(() => D.tasks.unshift(t));
+  el.value = ''; toast('Added: ' + t.title);
+});
+$('#search').addEventListener('input', e => { UI.q = e.target.value; render(); });
+$('#sync').dataset.act = 'sync';
+$('#menubtn').dataset.act = 'menu';
+$('#menubtn').innerHTML = icon('more'); $('#addbtn').innerHTML = icon('plus'); $('#logo').innerHTML = icon('check');
+
+function signOut() {
+  if (G.dirty && !confirm('Some changes have not reached Drive yet and will be lost. Sign out anyway?')) return;
+  if (G.token && window.google) google.accounts.oauth2.revoke(G.token, () => {});
+  for (const k of ['data', 'dirty', 'fileId', 'version', 'email', 'on']) lsSet('tasks.m.' + k, null);
+  location.reload();
+}
+
+let toastTimer = null;
+function toast(msg, opts = {}) {
+  const el = $('#toast'); el.className = opts.error ? 'err' : '';
+  el.innerHTML = `<span>${esc(msg)}</span>${opts.undo ? '<button>Undo</button>' : ''}`;
+  if (opts.undo) el.querySelector('button').onclick = () => { el.className = 'hidden'; opts.undo(); };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.className = 'hidden'; }, opts.undo ? 5000 : 2600);
+}
+
+// ------------------------------------------------------------------ start
+if (D && G.fileId) { showApp(); render(); setSync(G.wanted ? 'auth' : 'idle'); }
+else showGate('signin');
+setInterval(() => { if (D && !UI.open) render(); }, 60000);
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
