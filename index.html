@@ -73,9 +73,10 @@ input, textarea, select { font: inherit; color: var(--ink); }
 .chip { flex: none; height: 34px; padding: 0 12px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
 .chip.on { background: var(--acc); border-color: var(--acc); color: var(--accink); }
 .chip .n { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
-.filters { display: flex; gap: 8px; margin-top: 8px; }
-.filters select, .filters input { height: 38px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 0 10px; min-width: 0; font-size: 15px; }
-.filters select { flex: 1; } .filters input { flex: 1; outline: none; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.filters select, .filters input { width: 100%; height: 38px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 0 10px; min-width: 0; font-size: 15px; }
+.filters input { outline: none; }
+.filters select.on { border-color: var(--acc2); background: var(--accbg); color: var(--acc); font-weight: 600; }
 
 main { padding: 4px 16px 90px; }
 .group { margin: 16px 2px 6px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); display: flex; gap: 8px; }
@@ -138,6 +139,45 @@ textarea.field { resize: vertical; min-height: 46px; }
 .menu button:active { background: var(--chip); }
 .menu .who { font-size: 12.5px; color: var(--mute); padding: 6px 12px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow-wrap: anywhere; }
 .scrim { position: fixed; inset: 0; z-index: 25; }
+/* task page, read-only */
+.view { padding: 14px 16px 120px; }
+.vtitle { font-size: 22px; font-weight: 650; line-height: 1.3; margin: 4px 0 12px; overflow-wrap: anywhere; letter-spacing: -.01em; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; background: var(--chip); font-size: 13.5px; font-weight: 600; color: var(--ink2); }
+.badge .i { width: 16px; height: 16px; }
+.badge.todo { background: var(--chip); } .badge.doing { background: var(--bluebg); color: var(--blue); }
+.badge.blocked { background: var(--violetbg); color: var(--violet); } .badge.done { background: var(--accbg); color: var(--acc); }
+.badge.late { background: var(--redbg); color: var(--red); } .badge.today { background: var(--amberbg); color: var(--amber); }
+.badge.prio { background: var(--redbg); color: var(--red); }
+.vsec { margin-top: 20px; }
+.vsec h4 { margin: 0 0 7px 2px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); }
+.vbox { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; }
+.vnotes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.vsubs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.vsub { height: 28px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--line2); display: inline-flex; align-items: center; font-size: 13.5px; color: var(--ink2); }
+.vsub.on { background: var(--accbg); border-color: transparent; color: var(--acc); font-weight: 600; }
+.vli { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; }
+.vli + .vli { border-top: 1px solid var(--line); }
+.vli .mk { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line2); flex: none; margin-top: 2px; display: grid; place-items: center; color: #fff; }
+.vli .mk.on { background: var(--acc); border-color: var(--acc); }
+.vli .mk .i { width: 13px; height: 13px; }
+.vli.done .t { color: var(--mute); text-decoration: line-through; }
+.actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; display: flex; gap: 10px; padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px); background: linear-gradient(transparent, var(--bg) 30%); }
+.actions .btn { flex: 1; }
+.btn.small { height: 36px; padding: 0 14px; border-radius: 11px; font-size: 14.5px; }
+
+/* drag and drop (long press on a card) */
+.card { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform .12s ease, box-shadow .12s ease; }
+.card.press { transform: scale(.975); }
+.card.ph { opacity: .35; border-style: dashed; box-shadow: none; }
+.drag-ghost { position: fixed; z-index: 50; pointer-events: none; margin: 0 !important; box-shadow: 0 18px 44px rgba(0, 0, 0, .28) !important; transform: rotate(1.2deg) scale(1.03); opacity: .97; }
+.grp.vacant { display: none; }
+body.dragging .grp.vacant { display: block; }
+.dropzone { border: 2px dashed var(--line2); border-radius: 14px; padding: 16px; text-align: center; color: var(--mute); font-size: 14px; margin-bottom: 8px; }
+.grp:has(.card) .dropzone { display: none; }
+body.dragging .group { color: var(--acc); }
+body.dragging { -webkit-user-select: none; user-select: none; }
+
 #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 22px); transform: translateX(-50%); z-index: 40; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14.5px; max-width: calc(100vw - 32px); box-shadow: var(--shadow-lg); display: flex; gap: 14px; align-items: center; }
 #toast.err { background: var(--red); color: #fff; }
 #toast button { font-weight: 700; color: var(--acc2); }
@@ -159,6 +199,8 @@ textarea.field { resize: vertical; min-height: 46px; }
     <div class="chips" id="nav"></div>
     <div class="filters">
       <select id="proj" aria-label="Project"></select>
+      <select id="sub" aria-label="Subproject"></select>
+      <select id="tag" aria-label="Tag"></select>
       <input id="search" type="search" placeholder="Search" aria-label="Search">
     </div>
   </header>
@@ -193,7 +235,7 @@ const STATUS = { todo: 'To do', doing: 'In progress', blocked: 'Waiting', done: 
 const PRIO = ['None', 'Low', 'Medium', 'High'];
 const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every working day (Mon–Fri)'], ['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Every month']];
 const REASONS = ['Waiting for parts', 'Waiting for the customer', 'Waiting for a colleague', 'Waiting for information'];
-const NAV = [['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done'], ['all', 'All']];
+const NAV = [['all', 'All'], ['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done']];
 const TOMB_DAYS = 90;
 const ICONS = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
@@ -210,6 +252,9 @@ const ICONS = {
   file: '<path d="M6 3.5h8l4.5 4.5v12.5H6z"/><path d="M14 3.5V8h4.5"/>',
   out: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H4"/>',
   folder: '<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.8l2 2.3h7.2a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>',
+  edit: '<path d="M4 20h4.2L19.3 8.9a2.1 2.1 0 0 0-3-3L5.2 17v3z"/><path d="m14.5 7.5 2.9 2.9"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  repeat: '<path d="m17 2.5 3 3-3 3"/><path d="M4 11.5v-1a5 5 0 0 1 5-5h11"/><path d="m7 21.5-3-3 3-3"/><path d="M20 12.5v1a5 5 0 0 1-5 5H4"/>',
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
 };
 const icon = n => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
@@ -373,7 +418,7 @@ const core = d => JSON.stringify([d.tasks, d.templates, d.projects, d.deleted]);
 
 // ------------------------------------------------------------------ state
 let D = null;
-const UI = { nav: lsGet('tasks.m.nav') || 'active', project: lsGet('tasks.m.project') || '', q: '', open: null };
+const UI = { nav: 'all', project: lsGet('tasks.m.project') || '', sub: lsGet('tasks.m.sub') || '', tag: lsGet('tasks.m.tag') || '', q: '', open: null, mode: 'view', drag: null, dragEnd: 0 };
 const G = {
   token: null, exp: 0, client: null, asking: false, email: lsGet('tasks.m.email') || '',
   fileId: lsGet('tasks.m.fileId'), version: lsGet('tasks.m.version'), dirty: lsGet('tasks.m.dirty') === '1',
@@ -590,7 +635,8 @@ function matchNav(t, nav) {
 function filtered(nav = UI.nav) {
   const q = low(UI.q.trim());
   return D.tasks.filter(t => {
-    if (UI.project && !inProject(t, UI.project)) return false;
+    if (UI.project && !t.cats.some(c => low(c.project) === low(UI.project) && (!UI.sub || low(c.sub) === low(UI.sub)))) return false;
+    if (UI.tag && !t.tags.some(g => low(g) === low(UI.tag))) return false;
     if (q) {
       const hay = [t.title, t.notes, t.reason, t.tags.join(' '), t.cats.map(c => c.project + ' ' + c.sub).join(' '), t.subs.map(s => s.t).join(' '), t.log.map(e => e.t).join(' ')].join(' ').toLowerCase();
       return hay.includes(q);
@@ -630,21 +676,38 @@ function render() {
   const opts = `<option value="">All projects</option>` + D.projects.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
   if (sel.dataset.h !== opts) { sel.innerHTML = opts; sel.dataset.h = opts; }
   if (UI.project && !D.projects.some(p => p.name === UI.project)) UI.project = '';
-  sel.value = UI.project;
-  $('#quick').placeholder = UI.project ? `Add to ${UI.project}…  #tag +sub !!` : 'Add a task…  #tag @project/sub !!';
+  sel.value = UI.project; sel.classList.toggle('on', !!UI.project);
+  // subproject: those of the chosen project
+  const proj = D.projects.find(p => p.name === UI.project), subSel = $('#sub');
+  if (!proj || !proj.subs.includes(UI.sub)) UI.sub = '';
+  const sopts = `<option value="">${proj ? 'All subprojects' : 'Subproject…'}</option>` + (proj ? proj.subs.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('') : '');
+  if (subSel.dataset.h !== sopts) { subSel.innerHTML = sopts; subSel.dataset.h = sopts; }
+  subSel.value = UI.sub; subSel.disabled = !proj || !proj.subs.length; subSel.classList.toggle('on', !!UI.sub);
+  // tags in use
+  const tags = [...new Set(D.tasks.flatMap(t => t.tags))].sort((a, b) => low(a) < low(b) ? -1 : 1);
+  if (UI.tag && !tags.some(g => low(g) === low(UI.tag))) UI.tag = '';
+  const topts = `<option value="">All tags</option>` + tags.map(g => `<option value="${esc(g)}">#${esc(g)}</option>`).join('');
+  const tagSel = $('#tag');
+  if (tagSel.dataset.h !== topts) { tagSel.innerHTML = topts; tagSel.dataset.h = topts; }
+  tagSel.value = UI.tag; tagSel.classList.toggle('on', !!UI.tag);
+  const where = UI.project ? UI.project + (UI.sub ? '/' + UI.sub : '') : '';
+  $('#quick').placeholder = where ? `Add to ${where}…  #tag !!` : 'Add a task…  #tag @project/sub !!';
   // the tasks
   const rows = filtered();
   let h = '';
+  if (UI.drag) { UI.renderLater = true; return; }   // never redraw the list under a finger
   if (UI.q.trim() || !['active', 'all'].includes(UI.nav)) {
     let list = rows;
     if (UI.nav === 'done' && !UI.q.trim()) list = [...rows].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
-    h = list.map(card).join('');
+    if (list.length) h = `<section class="grp" data-st="">${list.map(card).join('')}</section>`;
   } else {
-    for (const st of ['doing', 'todo', 'blocked', 'done']) {
+    const groups = UI.nav === 'all' ? ['doing', 'todo', 'blocked', 'done'] : ['doing', 'todo', 'blocked'];
+    for (const st of groups) {
       const g = rows.filter(t => t.status === st);
-      if (!g.length) continue;
-      h += `<div class="group">${STATUS[st]} <span>${g.length}</span></div>` + g.map(card).join('');
+      h += `<section class="grp ${g.length ? '' : 'vacant'}" data-st="${st}"><div class="group">${STATUS[st]} <span>${g.length || ''}</span></div>`
+        + g.map(card).join('') + `<div class="dropzone">Drop here: ${STATUS[st]}</div></section>`;
     }
+    if (!rows.length) h += `<div class="empty">Nothing here.</div>`;
   }
   $('#list').innerHTML = h || `<div class="empty">${UI.q.trim() ? 'Nothing found.' : 'Nothing here.'}</div>`;
   setSync(G.state, G.msg);
@@ -655,6 +718,7 @@ function renderSheet() {
   const t = UI.open && findTask(UI.open);
   const root = $('#sheet-root');
   if (!t) { root.innerHTML = ''; UI.open = null; return; }
+  if (UI.mode !== 'edit') { renderView(t); return; }
   const scroll = root.firstElementChild ? root.firstElementChild.scrollTop : 0;
   const focus = document.activeElement && document.activeElement.id;
   const seg = (k, items, cur) => `<div class="seg">${items.map(([v, l]) => `<button class="${String(cur) === String(v) ? 'on' : ''}" data-act="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
@@ -666,9 +730,10 @@ function renderSheet() {
       ${subs.length ? `<div class="subchips">${subs.map(c => `<button class="subchip ${c.done ? 'on' : ''}" data-act="tick-cat" data-p="${esc(p)}" data-s="${esc(c.sub)}">${c.done ? '✔ ' : ''}${esc(c.sub)}</button>`).join('')}</div>` : ''}</div>`;
   }
   root.innerHTML = `<div class="sheet">
-    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Task</b><div class="spacer"></div>
+    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Edit task</b><div class="spacer"></div>
       <button class="icon-btn" data-act="dup" aria-label="Duplicate">${icon('copy')}</button>
-      <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button></div>
+      <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button>
+      <button class="btn small" data-act="close" style="margin-left:4px">Done</button></div>
     <div class="form">
       <textarea id="f-title" class="field ttl" rows="2" data-f="title">${esc(t.title)}</textarea>
       <span class="lbl">Status</span>${seg('status', Object.entries(STATUS), t.status)}
@@ -692,14 +757,53 @@ function renderSheet() {
   root.firstElementChild.scrollTop = scroll;
   if (focus && $('#' + focus)) $('#' + focus).focus();
 }
-function openTask(id) { UI.open = id; renderSheet(); history.pushState({ task: id }, ''); }
-function closeTask() { UI.open = null; renderSheet(); render(); }
-addEventListener('popstate', () => { if (UI.open) closeTask(); });
+function renderView(t) {
+  const root = $('#sheet-root');
+  const scroll = root.firstElementChild && root.firstElementChild.dataset.v === t.id ? root.firstElementChild.scrollTop : 0;
+  const ds = dueState(t), ic = { todo: 'circle', doing: 'half', blocked: 'pause', done: 'checkc' }[t.status];
+  const b = [`<span class="badge ${t.status}">${icon(ic)} ${STATUS[t.status]}</span>`];
+  if (t.priority) b.push(`<span class="badge prio">${'!'.repeat(t.priority)} ${PRIO[t.priority]}</span>`);
+  if (t.due) b.push(`<span class="badge ${ds}">${icon('cal')} ${ds === 'late' ? 'Overdue · ' : ''}${esc(fmtDay(parseISO(t.due)))}</span>`);
+  if (t.repeat) b.push(`<span class="badge">${icon('repeat')} ${esc((REPEATS.find(r => r[0] === t.repeat) || ['', ''])[1])}</span>`);
+  if (isRunning(t)) b.push(`<span class="badge doing">● Timer ${fmtHM(timeSpent(t))}</span>`);
+  const sec = (title, body) => `<div class="vsec"><h4>${title}</h4>${body}</div>`;
+  let h = `<div class="vtitle">${esc(t.title)}</div><div class="badges">${b.join('')}</div>`;
+  if (t.status === 'blocked' && t.reason) h += sec('Waiting for', `<div class="vbox" style="color:var(--violet)">${esc(t.reason)}</div>`);
+  if (t.cats.length) h += sec('Project', projectsOf(t).map(p => {
+    const subs = t.cats.filter(c => c.project === p && c.sub);
+    return `<div class="vbox" style="margin-bottom:6px"><b>${esc(p)}</b>${subs.length ? ` <span style="color:var(--mute);font-size:13px">${subs.filter(c => c.done).length}/${subs.length}</span><div class="vsubs">${subs.map(c => `<span class="vsub ${c.done ? 'on' : ''}">${c.done ? '✔ ' : ''}${esc(c.sub)}</span>`).join('')}</div>` : ''}</div>`;
+  }).join(''));
+  if (t.tags.length) h += sec('Tags', `<div class="badges">${t.tags.map(g => `<span class="badge">#${esc(g)}</span>`).join('')}</div>`);
+  if (t.subs.length) h += sec(`Checklist · ${t.subs.filter(x => x.done).length}/${t.subs.length}`, `<div class="vbox">${t.subs.map(x => `<div class="vli ${x.done ? 'done' : ''}"><span class="mk ${x.done ? 'on' : ''}">${x.done ? icon('check') : ''}</span><span class="t">${esc(x.t)}</span></div>`).join('')}</div>`);
+  if (t.notes.trim()) h += sec('Notes', `<div class="vbox vnotes">${esc(t.notes.trim())}</div>`);
+  if (t.log.length) h += sec('Journal', `<div class="vbox">${[...t.log].reverse().map(e => `<div class="vli"><span class="t"><span class="when" style="display:block;font-size:12px;color:var(--mute)">${fmtStamp(e.at)}</span>${esc(e.t)}</span></div>`).join('')}</div>`);
+  h += `<div class="info">Created ${t.created ? fmtStamp(t.created) : '—'}${t.doneAt ? `<br>Done ${fmtStamp(t.doneAt)}` : ''}${timeSpent(t) ? `<br>Time tracked ${fmtHM(timeSpent(t))}` : ''}${t.files.length ? `<br>${t.files.length} attached file${t.files.length > 1 ? 's' : ''} (on the PC)` : ''}</div>`;
+  root.innerHTML = `<div class="sheet" data-v="${t.id}">
+    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Task</b><div class="spacer"></div>
+      <button class="btn small ghost" data-act="edit">${icon('edit')} Edit</button></div>
+    <div class="view">${h}</div>
+    <div class="actions">
+      <button class="btn ${t.status === 'done' ? 'ghost' : ''}" data-act="view-done">${icon(t.status === 'done' ? 'circle' : 'check')} ${t.status === 'done' ? 'Reopen' : 'Mark done'}</button>
+      <button class="btn ghost" data-act="edit">${icon('edit')} Edit</button>
+    </div></div>`;
+  root.firstElementChild.scrollTop = scroll;
+}
+// Tap a card: see the task. "Edit": change it. Back goes edit → view → list.
+function openTask(id) { UI.open = id; UI.mode = 'view'; renderSheet(); history.pushState({ task: id }, ''); }
+function editTask() { if (document.activeElement) document.activeElement.blur(); UI.mode = 'edit'; renderSheet(); history.pushState({ task: UI.open, edit: 1 }, ''); }
+function closeTask() { UI.open = null; UI.mode = 'view'; renderSheet(); render(); }
+addEventListener('popstate', () => {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // saves a field being typed
+  if (!UI.open) { renderSheet(); render(); return; }
+  if (UI.mode === 'edit') { UI.mode = 'view'; renderSheet(); render(); } else closeTask();
+});
 
 // field edits: saved when the field is left
 document.addEventListener('change', e => {
   const el = e.target, f = el.dataset && el.dataset.f;
-  if (el.id === 'proj') { UI.project = el.value; lsSet('tasks.m.project', UI.project); render(); return; }
+  if (el.id === 'proj') { UI.project = el.value; UI.sub = ''; lsSet('tasks.m.project', UI.project); lsSet('tasks.m.sub', ''); render(); return; }
+  if (el.id === 'sub') { UI.sub = el.value; lsSet('tasks.m.sub', UI.sub); render(); return; }
+  if (el.id === 'tag') { UI.tag = el.value; lsSet('tasks.m.tag', UI.tag); render(); return; }
   if (!f || !UI.open) return;
   const t = findTask(UI.open); if (!t) return;
   let v = el.value;
@@ -709,6 +813,89 @@ document.addEventListener('change', e => {
   if (JSON.stringify(t[f]) === JSON.stringify(v)) return;
   change(() => { t[f] = v; });
 });
+
+// ------------------------------------------------------------------ drag and drop
+// Hold a card still for a moment (it shrinks a little and the phone buzzes),
+// then move it: up and down to change the order, into another group to change
+// the status. Moving the finger right away scrolls the list as usual.
+const HOLD_MS = 380;
+let press = null;
+function canDrag() { return !(UI.nav === 'done' && !UI.q.trim()); }   // "Done" is sorted by date, not by hand
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest('#list .card');
+  if (!c || UI.drag || e.button > 0 || !canDrag()) return;
+  press = { card: c, x: e.clientX, y: e.clientY, id: e.pointerId };
+  c.classList.add('press');
+  press.timer = setTimeout(() => startDrag(), HOLD_MS);
+});
+function cancelPress() { if (!press) return; clearTimeout(press.timer); press.card.classList.remove('press'); press = null; }
+document.addEventListener('pointermove', e => {
+  if (UI.drag) { moveDrag(e.clientX, e.clientY); return; }
+  if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) cancelPress();
+});
+document.addEventListener('pointerup', () => { if (UI.drag) endDrag(); else cancelPress(); });
+document.addEventListener('pointercancel', () => { if (UI.drag) endDrag(true); else cancelPress(); });
+// while dragging, the page must not scroll under the finger
+document.addEventListener('touchmove', e => { if (UI.drag) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => { if (e.target.closest('#list .card')) e.preventDefault(); });
+function startDrag() {
+  const c = press.card, r = c.getBoundingClientRect();
+  c.classList.remove('press');
+  const ghost = c.cloneNode(true); ghost.classList.add('drag-ghost');
+  Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px' });
+  document.body.appendChild(ghost);
+  c.classList.add('ph');
+  UI.drag = { card: c, ghost, dx: press.x - r.left, dy: press.y - r.top, from: c.closest('.grp').dataset.st, y: press.y };
+  press = null;
+  document.body.classList.add('dragging');
+  if (navigator.vibrate) navigator.vibrate(25);
+  autoScroll();
+}
+function moveDrag(x, y) {
+  const d = UI.drag; d.y = y;
+  d.ghost.style.left = (x - d.dx) + 'px'; d.ghost.style.top = (y - d.dy) + 'px';
+  const el = document.elementFromPoint(Math.min(Math.max(x, 20), innerWidth - 20), y);
+  if (!el) return;
+  const over = el.closest('#list .card'), grp = el.closest('#list .grp');
+  if (over && over !== d.card) {
+    const r = over.getBoundingClientRect();
+    if (y < r.top + r.height / 2) over.before(d.card); else over.after(d.card);
+  } else if (!over && grp && !grp.contains(d.card)) {
+    const head = grp.querySelector('.group'), zone = grp.querySelector('.dropzone');
+    if (zone && !grp.querySelector('.card')) zone.before(d.card);
+    else if (head && y < head.getBoundingClientRect().bottom + 30) head.after(d.card);
+    else (zone ? zone.before(d.card) : grp.appendChild(d.card));
+  }
+}
+function autoScroll() {
+  const d = UI.drag; if (!d) return;
+  const edge = 90, top = $('.top').getBoundingClientRect().bottom;
+  let v = 0;
+  if (d.y < top + edge) v = -Math.ceil((top + edge - d.y) / 6);
+  else if (d.y > innerHeight - edge) v = Math.ceil((d.y - innerHeight + edge) / 6);
+  if (v) { scrollBy(0, v); moveDrag(parseFloat(d.ghost.style.left) + d.dx, d.y); }
+  requestAnimationFrame(autoScroll);
+}
+function endDrag(cancelled = false) {
+  const d = UI.drag; UI.drag = null; UI.dragEnd = Date.now();
+  document.body.classList.remove('dragging');
+  d.ghost.remove(); d.card.classList.remove('ph');
+  const t = findTask(d.card.dataset.id);
+  const grp = d.card.closest('.grp'), st = grp ? grp.dataset.st : '';
+  const next = d.card.nextElementSibling && d.card.nextElementSibling.matches('.card') ? d.card.nextElementSibling.dataset.id : null;
+  const prev = d.card.previousElementSibling && d.card.previousElementSibling.matches('.card') ? d.card.previousElementSibling.dataset.id : null;
+  UI.renderLater = false;
+  if (cancelled || !t) { render(); return; }
+  const oldIdx = D.tasks.indexOf(t);
+  change(() => {
+    D.tasks.splice(D.tasks.indexOf(t), 1);
+    let i = next ? D.tasks.findIndex(x => x.id === next) : prev ? D.tasks.findIndex(x => x.id === prev) + 1 : -1;
+    if (i < 0) i = Math.min(oldIdx, D.tasks.length);
+    D.tasks.splice(i, 0, t);
+    if (st && st !== t.status) setStatus(t, st, st === 'blocked' ? '' : null);
+  }, true);
+  if (st && st !== d.from) toast(`Moved to ${STATUS[st]}`);
+}
 
 // ------------------------------------------------------------------ taps
 const ACT = {
@@ -726,6 +913,13 @@ const ACT = {
     if (t.status === 'done' && !rep) toast('Done: ' + t.title, { undo: () => { const x = findTask(id); if (x) change(() => setStatus(x, 'todo')); } });
   },
   close: () => history.back(),
+  edit: () => editTask(),
+  'view-done': () => {
+    const t = findTask(UI.open); if (!t) return;
+    const rep = t.repeat;
+    change(() => setStatus(t, t.status === 'done' ? 'todo' : 'done'));
+    if (t.status === 'done') { toast(rep ? 'Done — the next one is in the list' : 'Done: ' + t.title); history.back(); }
+  },
   status: el => { const t = findTask(UI.open); change(() => setStatus(t, el.dataset.v, el.dataset.v === 'blocked' ? (t.reason || '') : null)); },
   prio: el => { const t = findTask(UI.open); change(() => { t.priority = +el.dataset.v; }); },
   'clear-due': () => { const t = findTask(UI.open); change(() => { t.due = ''; }); },
@@ -744,7 +938,8 @@ const ACT = {
   delete: () => {
     const t = findTask(UI.open); if (!t || !confirm(`Delete “${t.title}”?`)) return;
     const copy = JSON.parse(JSON.stringify(t)), idx = D.tasks.indexOf(t);
-    history.back();
+    const steps = UI.mode === 'edit' ? -2 : -1;
+    UI.open = null; UI.mode = 'view'; renderSheet(); history.go(steps);
     change(() => { D.tasks = D.tasks.filter(x => x.id !== t.id); });
     toast('Deleted: ' + t.title, { undo: () => change(() => { D.tasks.splice(Math.min(idx, D.tasks.length), 0, copy); }) });
   },
@@ -767,6 +962,7 @@ const ACT = {
   sync: () => { if (!tokenOK()) signIn(); else sync(); },
 };
 document.addEventListener('click', e => {
+  if (Date.now() - (UI.dragEnd || 0) < 450) { e.preventDefault(); e.stopPropagation(); return; }   // the tap that ends a drag
   const a = e.target.closest('[data-act]');
   if (a && ACT[a.dataset.act]) { e.preventDefault(); if (a.closest('.menu')) $('#menu-root').innerHTML = ''; ACT[a.dataset.act](a, e); }
 });
@@ -781,7 +977,8 @@ $('#quickform').addEventListener('submit', e => {
   const el = $('#quick'), text = el.value.trim(); if (!text) return;
   const t = parseQuick(text, UI.project);
   if (!t.title) { toast('Write a title first.', { error: true }); return; }
-  if (!t.cats.length && UI.project) t.cats = normCats([{ project: UI.project, sub: '' }]);
+  if (!t.cats.length && UI.project) t.cats = normCats([{ project: UI.project, sub: UI.sub }]);
+  if (UI.tag && !t.tags.some(g => low(g) === low(UI.tag))) t.tags.push(UI.tag);
   if (['doing', 'blocked'].includes(UI.nav)) setStatus(t, UI.nav, '');
   change(() => D.tasks.unshift(t));
   el.value = ''; toast('Added: ' + t.title);
