@@ -75,7 +75,7 @@ input, textarea, select { font: inherit; color: var(--ink); }
 .chip .n { font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .filters select, .filters input { width: 100%; height: 38px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 0 10px; min-width: 0; font-size: 15px; }
-.filters input { outline: none; }
+.filters input { outline: none; grid-column: 1 / -1; }
 .filters select.on { border-color: var(--acc2); background: var(--accbg); color: var(--acc); font-weight: 600; }
 
 main { padding: 4px 16px 90px; }
@@ -208,6 +208,7 @@ body.dragging { -webkit-user-select: none; user-select: none; }
       <select id="proj" aria-label="Project"></select>
       <select id="sub" aria-label="Subproject"></select>
       <select id="tag" aria-label="Tag"></select>
+      <select id="sort" aria-label="Sort"></select>
       <input id="search" type="search" placeholder="Search" aria-label="Search">
     </div>
   </header>
@@ -425,7 +426,8 @@ const core = d => JSON.stringify([d.tasks, d.templates, d.projects, d.deleted]);
 
 // ------------------------------------------------------------------ state
 let D = null;
-const UI = { nav: 'all', project: lsGet('tasks.m.project') || '', sub: lsGet('tasks.m.sub') || '', tag: lsGet('tasks.m.tag') || '', q: '', open: null, mode: 'view', drag: null, dragEnd: 0 };
+const SORTS = [['manual', 'Manual order'], ['due', 'By due date'], ['prio', 'By priority'], ['new', 'Newest first']];
+const UI = { nav: 'all', sort: lsGet('tasks.m.sort') || 'manual', project: lsGet('tasks.m.project') || '', sub: lsGet('tasks.m.sub') || '', tag: lsGet('tasks.m.tag') || '', q: '', open: null, mode: 'view', drag: null, dragEnd: 0 };
 const G = {
   token: null, exp: 0, client: null, asking: false, email: lsGet('tasks.m.email') || '',
   fileId: lsGet('tasks.m.fileId'), version: lsGet('tasks.m.version'), dirty: lsGet('tasks.m.dirty') === '1',
@@ -651,6 +653,14 @@ function filtered(nav = UI.nav) {
     return matchNav(t, nav);
   });
 }
+// same orders as the PC (Sort); ties keep the manual order
+function sorted(list) {
+  const l = [...list];
+  if (UI.sort === 'due') l.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+  else if (UI.sort === 'prio') l.sort((a, b) => b.priority - a.priority);
+  else if (UI.sort === 'new') l.sort((a, b) => (b.created || 0) - (a.created || 0));
+  return l;
+}
 function card(t) {
   const st = t.status, ds = dueState(t);
   const ic = { todo: 'circle', doing: 'half', blocked: 'pause', done: 'checkc' }[st];
@@ -699,13 +709,17 @@ function render() {
   tagSel.value = UI.tag; tagSel.classList.toggle('on', !!UI.tag);
   const where = UI.project ? UI.project + (UI.sub ? '/' + UI.sub : '') : '';
   $('#quick').placeholder = where ? `Add to ${where}…  #tag !!` : 'Add a task…  #tag @project/sub !!';
+  const sortSel = $('#sort');
+  if (!sortSel.options.length) sortSel.innerHTML = SORTS.map(([k, l]) => `<option value="${k}">Sort: ${l}</option>`).join('');
+  if (!SORTS.some(x => x[0] === UI.sort)) UI.sort = 'manual';
+  sortSel.value = UI.sort; sortSel.classList.toggle('on', UI.sort !== 'manual');
   // the tasks
-  const rows = filtered();
+  const rows = sorted(filtered());
   let h = '';
   if (UI.drag) { UI.renderLater = true; return; }   // never redraw the list under a finger
   if (UI.q.trim() || !['active', 'all'].includes(UI.nav)) {
     let list = rows;
-    if (UI.nav === 'done' && !UI.q.trim()) list = [...rows].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    if (UI.nav === 'done' && !UI.q.trim() && UI.sort === 'manual') list = [...rows].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
     if (list.length) h = `<section class="grp" data-st="">${list.map(card).join('')}</section>`;
   } else {
     const groups = UI.nav === 'all' ? ['doing', 'todo', 'blocked', 'done'] : ['doing', 'todo', 'blocked'];
@@ -816,6 +830,7 @@ document.addEventListener('change', e => {
   const el = e.target, f = el.dataset && el.dataset.f;
   if (el.id === 'proj') { UI.project = el.value; UI.sub = ''; lsSet('tasks.m.project', UI.project); lsSet('tasks.m.sub', ''); render(); return; }
   if (el.id === 'sub') { UI.sub = el.value; lsSet('tasks.m.sub', UI.sub); render(); return; }
+  if (el.id === 'sort') { UI.sort = el.value; lsSet('tasks.m.sort', UI.sort); render(); return; }
   if (el.id === 'tag') { UI.tag = el.value; lsSet('tasks.m.tag', UI.tag); render(); return; }
   if (el.dataset.addsub != null || el.id === 'f-addproj') { addCat(el); return; }
   if (!f || !UI.open) return;
@@ -901,6 +916,11 @@ function endDrag(cancelled = false) {
   UI.renderLater = false;
   if (cancelled || !t) { render(); return; }
   const oldIdx = D.tasks.indexOf(t);
+  if (UI.sort !== 'manual') {
+    if (st && st !== t.status) { change(() => setStatus(t, st, st === 'blocked' ? '' : null), true); toast(`Moved to ${STATUS[st]}`); }
+    else { render(); toast('To reorder by hand, choose “Sort: Manual order”.'); }
+    return;
+  }
   change(() => {
     D.tasks.splice(D.tasks.indexOf(t), 1);
     let i = next ? D.tasks.findIndex(x => x.id === next) : prev ? D.tasks.findIndex(x => x.id === prev) + 1 : -1;
