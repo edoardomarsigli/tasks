@@ -1094,8 +1094,7 @@ function digestGroups() {
   const t0 = iso(0), keys = [['Overdue', null], ['Due today', t0], ['Due tomorrow', iso(1)], ['Due in a week', iso(7)]];
   return keys.map(([label, day]) => [label, D.tasks.filter(t => t.status !== 'done' && t.due && (day ? t.due === day : t.due < t0)).map(t => t.title || '(no title)')]).filter(g => g[1].length);
 }
-function digestText(gs) { return gs.map(([l, ts]) => `${l} (${ts.length}): ` + ts.slice(0, 4).join('; ') + (ts.length > 4 ? `; +${ts.length - 4} more` : '')).join('
-'); }
+function digestText(gs) { return gs.map(([l, ts]) => `${l} (${ts.length}): ` + ts.slice(0, 4).join('; ') + (ts.length > 4 ? `; +${ts.length - 4} more` : '')).join('\n'); }
 async function dailyDigest(force) {
   const on = lsGet('tasks.m.remind') === '1';
   if (!D || (!on && !force) || !('Notification' in window) || Notification.permission !== 'granted') return;
