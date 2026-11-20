@@ -197,6 +197,7 @@ body.dragging { -webkit-user-select: none; user-select: none; }
       <div class="brand"><span class="logo" id="logo"></span>Tasks</div>
       <div class="spacer"></div>
       <button class="sync" id="sync"><span class="dot"></span><span id="synctext">…</span></button>
+      <button class="icon-btn" id="bell" aria-label="Daily reminders" title="Daily reminders">🔔</button>
       <button class="icon-btn" id="menubtn" aria-label="Menu"></button>
     </div>
     <form class="quick" id="quickform" autocomplete="off">
@@ -1084,6 +1085,39 @@ else if (tokenOK()) { if (G.fileId) sync(); }
 else if (D && G.fileId) renewQuietly();
 setInterval(() => { if (D && !UI.open) render(); }, 60000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// ---- daily reminders: overdue, due today, tomorrow, in a week -------------
+// Shown once a day when the app is opened or open in the background (a web page can't wake itself up when closed).
+function digestGroups() {
+  if (!D) return [];
+  const iso = d => { const x = new Date(Date.now() + d * 864e5); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+  const t0 = iso(0), keys = [['Overdue', null], ['Due today', t0], ['Due tomorrow', iso(1)], ['Due in a week', iso(7)]];
+  return keys.map(([label, day]) => [label, D.tasks.filter(t => t.status !== 'done' && t.due && (day ? t.due === day : t.due < t0)).map(t => t.title || '(no title)')]).filter(g => g[1].length);
+}
+function digestText(gs) { return gs.map(([l, ts]) => `${l} (${ts.length}): ` + ts.slice(0, 4).join('; ') + (ts.length > 4 ? `; +${ts.length - 4} more` : '')).join('
+'); }
+async function dailyDigest(force) {
+  const on = lsGet('tasks.m.remind') === '1';
+  if (!D || (!on && !force) || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const day = new Date().toDateString();
+  if (!force && lsGet('tasks.m.remindday') === day) return;
+  const gs = digestGroups();
+  if (!gs.length) { if (force) toast('Nothing overdue or due soon.'); return; }
+  lsSet('tasks.m.remindday', day);
+  const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+  if (reg) reg.showNotification('Tasks', { body: digestText(gs), icon: 'icon-192.png', tag: 'tasks-digest' });
+  else new Notification('Tasks', { body: digestText(gs), icon: 'icon-192.png' });
+}
+$('#bell').addEventListener('click', async () => {
+  if (!('Notification' in window)) { toast('This browser can’t show notifications.'); return; }
+  if (lsGet('tasks.m.remind') === '1') { lsSet('tasks.m.remind', '0'); $('#bell').style.opacity = .45; toast('Daily reminders off.'); return; }
+  const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (p !== 'granted') { toast('Notifications are blocked: allow them in the browser settings.'); return; }
+  lsSet('tasks.m.remind', '1'); $('#bell').style.opacity = 1; toast('Daily reminders on.'); dailyDigest(true);
+});
+$('#bell').style.opacity = lsGet('tasks.m.remind') === '1' ? 1 : .45;
+setInterval(() => dailyDigest(false), 60000); setTimeout(() => dailyDigest(false), 4000);
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', () => {});
 </script>
 </body>
 </html>
