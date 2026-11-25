@@ -201,6 +201,7 @@ body.dragging { -webkit-user-select: none; user-select: none; }
     </div>
     <form class="quick" id="quickform" autocomplete="off">
       <input id="quick" enterkeyhint="done" placeholder="Add a task…" spellcheck="false">
+      <button class="btn ghost" type="button" aria-label="Add with details" id="detbtn" data-act="new-detail"></button>
       <button class="btn" aria-label="Add" id="addbtn"></button>
     </form>
     <div class="chips" id="nav"></div>
@@ -251,7 +252,7 @@ function repeatLabel(r) {
 }
 function defaultDays(due) { const d = due ? new Date(due + 'T12:00') : new Date(), m = ['0', '0', '0', '0', '0', '0', '0']; m[(d.getDay() + 6) % 7] = '1'; return 'w:' + m.join(''); }
 const REASONS = ['Waiting for parts', 'Waiting for the customer', 'Waiting for a colleague', 'Waiting for information'];
-const NAV = [['all', 'All'], ['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done']];
+const NAV = [['all', 'All'], ['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done'], ['archive', 'Archive']];
 const TOMB_DAYS = 90;
 const ICONS = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
@@ -270,6 +271,7 @@ const ICONS = {
   folder: '<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.8l2 2.3h7.2a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>',
   edit: '<path d="M4 20h4.2L19.3 8.9a2.1 2.1 0 0 0-3-3L5.2 17v3z"/><path d="m14.5 7.5 2.9 2.9"/>',
   cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  archive: '<rect x="3.5" y="4.5" width="17" height="4.5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/>',
   repeat: '<path d="m17 2.5 3 3-3 3"/><path d="M4 11.5v-1a5 5 0 0 1 5-5h11"/><path d="m7 21.5-3-3 3-3"/><path d="M20 12.5v1a5 5 0 0 1-5 5H4"/>',
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
 };
@@ -329,6 +331,7 @@ function normRegistry(items, tasks) {
 const newTask = () => ({ id: uid(), title: '', notes: '', status: 'todo', reason: '', priority: 0, due: '', cats: [], tags: [], subs: [], log: [], files: [], time: [], hist: [], repeat: '', created: Date.now(), doneAt: null, mod: 0 });
 function setStatus(t, status, reason = null) {
   const old = t.status;
+  if (old !== status) t.arch = 0;   // a task that changes status leaves the archive
   if (status === 'done') { if (old !== 'done' || !t.doneAt) t.doneAt = Date.now(); } else t.doneAt = null;
   if (status === 'blocked') { if (reason != null) t.reason = reason.trim(); } else t.reason = '';
   if (old !== status) (t.hist = t.hist || []).push({ at: Date.now(), from: old || '', to: status });
@@ -350,7 +353,7 @@ function spawnNext(t) {
   let d = t.due ? parseISO(t.due) : new Date(today);
   d = repeatStep(d, t.repeat); while (dayStart(d) <= today) d = repeatStep(d, t.repeat);
   const n = JSON.parse(JSON.stringify(t));
-  Object.assign(n, { id: uid(), status: 'todo', reason: '', due: isoOf(d), log: [], time: [], hist: [], created: Date.now(), doneAt: null });
+  Object.assign(n, { id: uid(), status: 'todo', reason: '', due: isoOf(d), log: [], time: [], hist: [], created: Date.now(), doneAt: null, arch: 0 });
   for (const s of n.subs) { s.id = uid(); s.done = false; }
   for (const c of n.cats) c.done = false;
   t.repeat = '';
@@ -381,12 +384,13 @@ function parseQuick(text, defProject = '') {
   return t;
 }
 const dueState = t => { if (t.status === 'done' || !t.due) return ''; const td = todayISO(); return t.due < td ? 'late' : t.due === td ? 'today' : ''; };
-const isArchived = t => t.status === 'done' && t.doneAt && t.doneAt < dayStart(addDays(new Date(), -((D.settings || {}).archiveDays || 30)));
+// in the archive: put there by hand (arch 1), or done more than N days ago and not taken out by hand (arch -1)
+const isArchived = t => t.arch === 1 || (t.arch !== -1 && t.status === 'done' && t.doneAt && t.doneAt < dayStart(addDays(new Date(), -((D.settings || {}).archiveDays || 30))));
 const isRunning = t => (t.time || []).some(s => s.e == null);
 const timeSpent = t => (t.time || []).reduce((a, s) => a + Math.max(0, (s.e ?? Date.now()) - s.s), 0);
 const projectsOf = t => [...new Set(t.cats.map(c => c.project))];
 const inProject = (t, p) => t.cats.some(c => low(c.project) === low(p));
-const findTask = id => D.tasks.find(t => t.id === id);
+const findTask = id => D.tasks.find(t => t.id === id) || (UI.draft && UI.draft.id === id ? UI.draft : undefined);
 
 // ------------------------------------------------------------------ merging two copies (same rules as the PC program)
 const taskMod = t => (+t.mod || 0) || (+t.created || 0);
@@ -642,6 +646,8 @@ function showGate(kind, problem = '') {
 // ------------------------------------------------------------------ list
 function matchNav(t, nav) {
   const arch = isArchived(t);
+  if (nav === 'archive') return arch;
+  if (arch) return false;
   switch (nav) {
     case 'active': return t.status !== 'done';
     case 'all': return !arch;
@@ -765,10 +771,10 @@ function renderSheet() {
   const freeProj = D.projects.filter(r => !projectsOf(t).some(x => low(x) === low(r.name)));
   cats += `<select class="addsel wide" id="f-addproj" aria-label="Add to a project"><option value="">+ Add to a project</option>${freeProj.map(r => `<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('')}<option value="__new__">New project…</option></select>`;
   root.innerHTML = `<div class="sheet${enterCls(t)}">
-    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>Edit task</b><div class="spacer"></div>
-      <button class="icon-btn" data-act="dup" aria-label="Duplicate">${icon('copy')}</button>
-      <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button>
-      <button class="btn small" data-act="close" style="margin-left:4px">Done</button></div>
+    <div class="bar"><button class="icon-btn" data-act="close" aria-label="Back">${icon('back')}</button><b>${UI.draft ? 'New task' : 'Edit task'}</b><div class="spacer"></div>
+      ${UI.draft ? `<button class="btn small ghost" data-act="cancel-draft">Cancel</button>` : `<button class="icon-btn" data-act="dup" aria-label="Duplicate">${icon('copy')}</button>
+      <button class="icon-btn" data-act="delete" aria-label="Delete" style="color:var(--red)">${icon('trash')}</button>`}
+      <button class="btn small" data-act="close" style="margin-left:4px">${UI.draft ? 'Add' : 'Done'}</button></div>
     <div class="form">
       <textarea id="f-title" class="field ttl" rows="2" data-f="title">${esc(t.title)}</textarea>
       <span class="lbl">Status</span>${seg('status', Object.entries(STATUS), t.status)}
@@ -821,16 +827,35 @@ function renderView(t) {
     <div class="view">${h}</div>
     <div class="actions">
       <button class="btn ${t.status === 'done' ? 'ghost' : ''}" data-act="view-done">${icon(t.status === 'done' ? 'circle' : 'check')} ${t.status === 'done' ? 'Reopen' : 'Mark done'}</button>
-      <button class="btn ghost" data-act="edit">${icon('edit')} Edit</button>
+      <button class="btn ghost" data-act="archive">${icon('archive')} ${isArchived(t) ? 'Restore' : 'Archive'}</button>
     </div></div>`;
   root.firstElementChild.scrollTop = scroll;
 }
 // Tap a card: see the task. "Edit": change it. Back goes edit → view → list.
 function openTask(id) { UI.open = id; UI.mode = 'view'; renderSheet(); history.pushState({ task: id }, ''); }
 function editTask() { if (document.activeElement) document.activeElement.blur(); UI.mode = 'edit'; renderSheet(); history.pushState({ task: UI.open, edit: 1 }, ''); }
+function newDraft() {
+  const text = $('#quick').value.trim();
+  const t = text ? parseQuick(text, UI.project) : newTask();
+  if (!t.cats.length && UI.project) t.cats = normCats([{ project: UI.project, sub: UI.sub }]);
+  if (UI.tag && !t.tags.some(g => low(g) === low(UI.tag))) t.tags.push(UI.tag);
+  if (['doing', 'blocked'].includes(UI.nav)) setStatus(t, UI.nav, '');
+  UI.draft = t; UI.open = t.id; UI.mode = 'edit'; UI.discard = false;
+  renderSheet(); history.pushState({ task: t.id, edit: 1 }, '');
+  if (!t.title) setTimeout(() => { const el = $('#f-title'); if (el) el.focus(); }, 300);
+}
+// leaving the new task: added if it has a title (unless "Cancel"), otherwise dropped
+function endDraft() {
+  const t = UI.draft; UI.draft = null; if (!t || UI.discard) return;
+  const el = $('#f-title'); if (el && el.value.trim()) t.title = el.value.replace(/\s+/g, ' ').trim();
+  if (!t.title) { toast('Not added: the task had no title.'); return; }
+  change(() => D.tasks.unshift(t));
+  $('#quick').value = ''; toast('Added: ' + t.title);
+}
 function closeTask() { UI.open = null; UI.mode = 'view'; renderSheet(); render(); }
 addEventListener('popstate', () => {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // saves a field being typed
+  if (UI.draft) { endDraft(); closeTask(); return; }
   if (!UI.open) { renderSheet(); render(); return; }
   if (UI.mode === 'edit') { UI.mode = 'view'; renderSheet(); render(); } else closeTask();
 });
@@ -1018,6 +1043,15 @@ const ACT = {
   'rm-sub': el => { const t = findTask(UI.open); change(() => { t.subs = t.subs.filter(s => s.id !== el.dataset.s); }); },
   'add-sub': () => { const t = findTask(UI.open), v = $('#f-addsub').value.trim(); if (v) change(() => t.subs.push({ id: uid(), t: v, done: false })); },
   'add-log': () => { const t = findTask(UI.open), v = $('#f-addlog').value.trim(); if (v) change(() => t.log.push({ id: uid(), at: Date.now(), t: v })); },
+  archive: () => {
+    const t = findTask(UI.open); if (!t) return;
+    const on = !isArchived(t);
+    change(() => { t.arch = 0; if (on) t.arch = 1; else if (isArchived(t)) t.arch = -1; });
+    toast(on ? 'Moved to the archive' : 'Taken out of the archive');
+    if (on) history.back();
+  },
+  'new-detail': () => newDraft(),
+  'cancel-draft': () => { UI.discard = true; history.back(); },
   delete: () => {
     const t = findTask(UI.open); if (!t || !confirm(`Delete “${t.title}”?`)) return;
     const copy = JSON.parse(JSON.stringify(t)), idx = D.tasks.indexOf(t);
@@ -1069,7 +1103,7 @@ $('#quickform').addEventListener('submit', e => {
 $('#search').addEventListener('input', e => { UI.q = e.target.value; render(); });
 $('#sync').dataset.act = 'sync';
 $('#menubtn').dataset.act = 'menu';
-$('#menubtn').innerHTML = icon('more'); $('#addbtn').innerHTML = icon('plus'); $('#logo').innerHTML = icon('check');
+$('#menubtn').innerHTML = icon('more'); $('#addbtn').innerHTML = icon('plus'); $('#detbtn').innerHTML = icon('edit'); $('#logo').innerHTML = icon('check');
 
 function signOut() {
   if (G.dirty && !confirm('Some changes have not reached Drive yet and will be lost. Sign out anyway?')) return;
