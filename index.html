@@ -241,7 +241,15 @@ const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localSt
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const STATUS = { todo: 'To do', doing: 'In progress', blocked: 'Waiting', done: 'Done' };
 const PRIO = ['None', 'Low', 'Medium', 'High'];
-const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every working day (Mon–Fri)'], ['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Every month']];
+const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every working day (Mon–Fri)'], ['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['monthly', 'Every month'], ['days', 'On chosen days']];
+// repeat on chosen days: "w:" + 7 digits Mon..Sun, e.g. "w:1010100" = Mon, Wed, Fri (same as the PC program)
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const isDays = r => /^w:[01]{7}$/.test(r || '');
+function repeatLabel(r) {
+  if (isDays(r)) return 'Every ' + WD.filter((d, i) => r[2 + i] === '1').join(', ');
+  const x = REPEATS.find(x => x[0] === r); return x ? x[1] : '';
+}
+function defaultDays(due) { const d = due ? new Date(due + 'T12:00') : new Date(), m = ['0', '0', '0', '0', '0', '0', '0']; m[(d.getDay() + 6) % 7] = '1'; return 'w:' + m.join(''); }
 const REASONS = ['Waiting for parts', 'Waiting for the customer', 'Waiting for a colleague', 'Waiting for information'];
 const NAV = [['all', 'All'], ['active', 'Active'], ['today', 'Today'], ['late', 'Overdue'], ['doing', 'In progress'], ['todo', 'To do'], ['blocked', 'Waiting'], ['done', 'Done']];
 const TOMB_DAYS = 90;
@@ -328,6 +336,7 @@ function setStatus(t, status, reason = null) {
   if (status === 'done') for (const s of t.time || []) if (s.e == null) s.e = Math.max(Date.now(), s.s);
 }
 function repeatStep(d, rep) {
+  if (isDays(rep)) { for (let i = 0; i < 7; i++) { d = addDays(d, 1); if (rep[2 + (d.getDay() + 6) % 7] === '1') break; } return d; }
   switch (rep) {
     case 'weekdays': { d = addDays(d, 1); while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1); return d; }
     case 'weekly': return addDays(d, 7);
@@ -766,7 +775,8 @@ function renderSheet() {
       ${t.status === 'blocked' ? `<span class="lbl">Waiting for</span><input id="f-reason" class="field" list="reasons" data-f="reason" value="${esc(t.reason)}" placeholder="What is it waiting for?"><datalist id="reasons">${reasons.map(r => `<option value="${esc(r)}">`).join('')}</datalist>` : ''}
       <span class="lbl">Priority</span>${seg('prio', PRIO.map((l, i) => [i, l]), t.priority)}
       <span class="lbl">Due</span><div class="row"><input id="f-due" class="field" type="date" data-f="due" value="${esc(t.due)}">${t.due ? `<button class="btn ghost" data-act="clear-due">Clear</button>` : ''}</div>
-      <span class="lbl">Repeat</span><select id="f-repeat" class="field" data-f="repeat">${REPEATS.map(([v, l]) => `<option value="${v}" ${t.repeat === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="lbl">Repeat</span><select id="f-repeat" class="field" data-f="repeat">${REPEATS.map(([v, l]) => `<option value="${v}" ${(v === 'days' ? isDays(t.repeat) : t.repeat === v) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      ${isDays(t.repeat) ? `<span class="lbl">Repeat on · one or more days</span><div class="seg">${WD.map((d, i) => `<button class="${t.repeat[2 + i] === '1' ? 'on' : ''}" data-act="day" data-v="${i}">${d}</button>`).join('')}</div>` : ''}
       <span class="lbl">Project and subprojects <span style="text-transform:none;letter-spacing:0;font-weight:500">· tap a subproject to mark it done</span></span><div class="cats">${cats}</div>
       <span class="lbl">Tags</span><input id="f-tags" class="field" data-f="tags" value="${esc(t.tags.join(', '))}" placeholder="plc, hmi" autocapitalize="off">
       <span class="lbl">Checklist ${t.subs.length ? `· ${t.subs.filter(s => s.done).length}/${t.subs.length}` : ''}</span>
@@ -790,7 +800,7 @@ function renderView(t) {
   const b = [`<span class="badge ${t.status}">${icon(ic)} ${STATUS[t.status]}</span>`];
   if (t.priority) b.push(`<span class="badge prio">${'!'.repeat(t.priority)} ${PRIO[t.priority]}</span>`);
   if (t.due) b.push(`<span class="badge ${ds}">${icon('cal')} ${ds === 'late' ? 'Overdue · ' : ''}${esc(fmtDay(parseISO(t.due)))}</span>`);
-  if (t.repeat) b.push(`<span class="badge">${icon('repeat')} ${esc((REPEATS.find(r => r[0] === t.repeat) || ['', ''])[1])}</span>`);
+  if (t.repeat) b.push(`<span class="badge">${icon('repeat')} ${esc(repeatLabel(t.repeat))}</span>`);
   if (isRunning(t)) b.push(`<span class="badge doing">● Timer ${fmtHM(timeSpent(t))}</span>`);
   const sec = (title, body) => `<div class="vsec"><h4>${title}</h4>${body}</div>`;
   let h = `<div class="vtitle">${esc(t.title)}</div><div class="badges">${b.join('')}</div>`;
@@ -839,6 +849,7 @@ document.addEventListener('change', e => {
   if (f === 'title') { v = v.replace(/\s+/g, ' ').trim(); if (!v) { el.value = t.title; toast('A task needs a title.', { error: true }); return; } }
   if (f === 'tags') v = [...new Set(v.split(/[,\s]+/).map(x => x.replace(/^#/, '').trim()).filter(Boolean))];
   if (f === 'reason') v = v.trim();
+  if (f === 'repeat' && v === 'days') v = isDays(t.repeat) ? t.repeat : defaultDays(t.due);
   if (JSON.stringify(t[f]) === JSON.stringify(v)) return;
   change(() => { t[f] = v; });
 });
@@ -979,6 +990,13 @@ const ACT = {
   },
   status: el => { const t = findTask(UI.open); change(() => setStatus(t, el.dataset.v, el.dataset.v === 'blocked' ? (t.reason || '') : null)); },
   prio: el => { const t = findTask(UI.open); change(() => { t.priority = +el.dataset.v; }); },
+  day: el => {
+    const t = findTask(UI.open); if (!t || !isDays(t.repeat)) return;
+    const m = t.repeat.slice(2).split(''), i = +el.dataset.v;
+    m[i] = m[i] === '1' ? '0' : '1';
+    if (!m.includes('1')) { toast('Choose at least one day.', { error: true }); return; }
+    change(() => { t.repeat = 'w:' + m.join(''); });
+  },
   'clear-due': () => { const t = findTask(UI.open); change(() => { t.due = ''; }); },
   'tick-cat': el => {
     const t = findTask(UI.open); const c = t && t.cats.find(c => c.project === el.dataset.p && c.sub === el.dataset.s); if (!c) return;
